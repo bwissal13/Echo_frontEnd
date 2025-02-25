@@ -1,0 +1,68 @@
+<div class="auth-container">
+  <div class="auth-card">
+    <!-- Header -->
+    <div class="text-center space-y-3 mb-8">
+      <h1 class="text-3xl font-bold tracking-tight text-slate-800">
+        Verify Your Email
+      </h1>
+      <p class="text-base text-slate-600">
+        Please enter the 6-digit code sent to your email
+      </p>
+      <p class="text-sm text-slate-500" *ngIf="email">
+        {{ email }}
+      </p>
+    </div>
+
+    <!-- Form -->
+    <form [formGroup]="verifyForm" (ngSubmit)="onSubmit()" class="auth-form">
+      <!-- OTP Field -->
+      <div class="form-group">
+        <label class="form-label">Verification Code</label>
+        <input 
+          type="text" 
+          formControlName="otp"
+          class="form-input text-center tracking-[0.5em] text-lg"
+          placeholder="000000"
+          maxlength="6">
+        <div *ngIf="verifyForm.get('otp')?.invalid && verifyForm.get('otp')?.touched" 
+             class="form-error">
+          {{ getErrorMessage() }}
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <button 
+        type="submit"
+        [disabled]="verifyForm.invalid || loading"
+        class="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-slate-700 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 disabled:opacity-50 disabled:cursor-not-allowed">
+        <mat-spinner *ngIf="loading" [diameter]="20" class="mr-2"></mat-spinner>
+        <span *ngIf="!loading">Verify Email</span>
+      </button>
+
+      <!-- Resend Code -->
+      <div class="text-center mt-4">
+        <button 
+          type="button"
+          (click)="resendOTP()"
+          [disabled]="resendDisabled || loading"
+          class="text-sm font-medium text-slate-700 hover:text-slate-900 disabled:text-slate-400">
+          Resend Code {{ resendDisabled ? '(' + countdown + 's)' : '' }}
+        </button>
+      </div>
+
+      <!-- Back to Login -->
+      <div class="text-center text-sm text-slate-600 mt-4">
+        <a routerLink="/auth/login" class="font-medium text-slate-700 hover:text-slate-900">
+          Back to login
+        </a>
+      </div>
+    </form>
+
+    <!-- Success Message -->
+    <div *ngIf="verified" class="text-center mt-6">
+      <div class="text-green-600 font-medium">
+        Email verified successfully! Redirecting to login...
+      </div>
+    </div>
+  </div>
+</div> 
