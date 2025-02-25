@@ -1,0 +1,93 @@
+@import '@angular/material/prebuilt-themes/indigo-pink.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply antialiased bg-gray-50;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="password"] {
+    @apply appearance-none;
+    &:focus {
+      @apply outline-none;
+    }
+  }
+}
+
+@layer components {
+  .auth-container {
+    @apply min-h-screen flex flex-col items-center justify-center px-4 bg-gray-50;
+  }
+
+  .auth-card {
+    @apply w-full max-w-[440px] space-y-8;
+  }
+
+  .auth-form {
+    @apply space-y-6 bg-white p-8 rounded-xl shadow-sm border border-gray-100;
+  }
+
+  .form-group {
+    @apply space-y-1.5;
+  }
+
+  .form-label {
+    @apply block text-sm font-medium text-gray-700;
+  }
+
+  .form-input {
+    @apply block w-full px-3 py-2 border border-gray-200 rounded-lg text-base;
+    @apply focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900;
+    @apply placeholder:text-gray-400;
+  }
+
+  .form-error {
+    @apply text-sm text-red-600 mt-1;
+  }
+
+  .btn-primary {
+    @apply w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm;
+    @apply text-sm font-medium text-white bg-gray-900;
+    @apply hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900;
+    @apply disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed;
+  }
+
+  .link-text {
+    @apply font-medium text-gray-900 hover:text-gray-800;
+  }
+}
+
+// Material overrides
+.mat-mdc-progress-spinner {
+  --mdc-circular-progress-active-indicator-color: #ffffff;
+}
+
+.mat-mdc-icon-button {
+  @apply text-gray-400 hover:text-gray-600 !important;
+  
+  .mat-icon {
+    @apply text-[20px];
+  }
+}
+
+// Custom animations
+@keyframes fadeIn {
+  from { 
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.auth-container {
+  animation: fadeIn 0.3s ease-out;
+}
+
