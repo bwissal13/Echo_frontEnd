@@ -1,0 +1,111 @@
+<div class="notion-container">
+  <!-- Minimal Top Bar -->
+  <div class="top-bar">
+    <div class="left-actions">
+      <button mat-icon-button (click)="goBack()" class="back-button">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div class="page-info">
+        <div class="breadcrumb">My Books / {{ bookTitle || 'Untitled' }}</div>
+        <div class="last-edited">Last edited {{ lastEdited | date:'shortTime' }}</div>
+      </div>
+    </div>
+    <div class="right-actions">
+      <button mat-button class="share-button">
+        <mat-icon>share</mat-icon>
+        Share
+      </button>
+      <button mat-button [matMenuTriggerFor]="moreMenu">
+        <mat-icon>more_horiz</mat-icon>
+      </button>
+      <mat-menu #moreMenu="matMenu">
+        <button mat-menu-item (click)="saveAsDraft()">
+          <mat-icon>save</mat-icon>
+          Save as draft
+        </button>
+        <button mat-menu-item (click)="publish()">
+          <mat-icon>publish</mat-icon>
+          Publish
+        </button>
+        <mat-divider></mat-divider>
+        <button mat-menu-item (click)="fileInput.click()">
+          <mat-icon>image</mat-icon>
+          Change cover
+        </button>
+      </mat-menu>
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <div class="content-area">
+    <!-- Cover Image Section -->
+    <div class="cover-section" [style.background-image]="coverImageUrl">
+      <button mat-icon-button class="change-cover" (click)="fileInput.click()">
+        <mat-icon>add_photo_alternate</mat-icon>
+      </button>
+      <input #fileInput type="file" hidden (change)="onFileSelected($event)" accept="image/*">
+    </div>
+
+    <!-- Title Section -->
+    <div class="title-section">
+      <input 
+        class="title-input" 
+        [(ngModel)]="bookTitle" 
+        placeholder="Untitled"
+        (input)="onTitleChange()"
+      >
+    </div>
+
+    <!-- Description Editor -->
+    <div class="description-section">
+      <quill-editor
+        #quillEditor
+        [(ngModel)]="bookContent"
+        [modules]="quillModules"
+        [placeholder]="''"
+        (onContentChanged)="onContentChange()"
+        class="editor-style">
+      </quill-editor>
+    </div>
+
+    <!-- Chapters Section -->
+    <div class="chapters-section">
+      <div class="section-header" *ngIf="chapters.length > 0">
+        <mat-icon>menu_book</mat-icon>
+        <span>Chapters</span>
+        <span class="chapter-count">{{ chapters.length }}</span>
+      </div>
+      
+      <app-chapter-list
+        *ngIf="chapters.length > 0"
+        [chapters]="chapters"
+        (editChapter)="editChapter($event)"
+        (deleteChapter)="deleteChapter($event)"
+        (chaptersReordered)="onChaptersReordered($event)">
+      </app-chapter-list>
+
+      <div class="add-chapter-prompt" *ngIf="chapters.length === 0">
+        <button mat-button (click)="addSubpage()">
+          <mat-icon>add_box</mat-icon>
+          Add a subpage
+        </button>
+        <button mat-button (click)="addInlinePage()">
+          <mat-icon>post_add</mat-icon>
+          Add inline
+        </button>
+      </div>
+    </div>
+
+    <!-- Add this after the quill-editor -->
+    <div class="slash-menu" *ngIf="showSlashMenu" [style.top.px]="slashMenuPosition.top" [style.left.px]="slashMenuPosition.left">
+      <div class="slash-menu-item" (click)="insertImage()">
+        <mat-icon>image</mat-icon>
+        <div class="item-details">
+          <div class="item-title">Image</div>
+          <div class="item-description">Upload or embed with a link</div>
+        </div>
+      </div>
+      <!-- Add more menu items here -->
+    </div>
+  </div>
+</div> 
