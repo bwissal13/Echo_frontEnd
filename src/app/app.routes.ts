@@ -5,6 +5,8 @@ import { VerifyEmailComponent } from './auth/components/verify-email/verify-emai
 import { ForgotPasswordComponent } from './auth/components/forgot-password/forgot-password.component';
 import { ResetPasswordComponent } from './auth/components/reset-password/reset-password.component';
 import { AuthGuard } from './auth/guards/auth.guard';
+import { BookListComponent } from './books/components/book-list/book-list.component';
+import { BookEditorComponent } from './books/components/book-editor/book-editor.component';
 
 export const routes: Routes = [
   {
@@ -22,6 +24,24 @@ export const routes: Routes = [
     path: 'dashboard',
     loadComponent: () => import('./dashboard/dashboard.component').then(m => m.DashboardComponent),
     canActivate: [AuthGuard]
+  },
+  {
+    path: 'books',
+    canActivate: [AuthGuard],
+    children: [
+      {
+        path: '',
+        component: BookListComponent
+      },
+      {
+        path: 'new',
+        component: BookEditorComponent
+      },
+      {
+        path: 'edit/:id',
+        component: BookEditorComponent
+      }
+    ]
   },
   { path: '', redirectTo: 'auth/login', pathMatch: 'full' },
   { path: '**', redirectTo: 'auth/login' }
