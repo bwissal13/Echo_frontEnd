@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -51,10 +51,11 @@ import { Book } from '../../models/book.interface';
             <mat-icon>search</mat-icon>
             <input type="text" placeholder="Search book name, author, edition...">
           </div>
-          <button mat-raised-button color="primary" routerLink="/books/new" *ngIf="isAuthor">
-            <mat-icon>add</mat-icon>
-            New Book
+          <button mat-raised-button color="primary" (click)="fileInput.click()" *ngIf="isAuthor">
+            <mat-icon>image</mat-icon>
+            Change Cover
           </button>
+          <input #fileInput type="file" hidden (change)="onFileSelected($event)" accept="image/*">
         </div>
 
         <!-- Loading spinner -->
@@ -67,8 +68,8 @@ import { Book } from '../../models/book.interface';
 
         <!-- Books grid -->
         <div class="book-grid" *ngIf="!loading && !error && books.length > 0">
-          <mat-card *ngFor="let book of books" class="book-card" [routerLink]="['/books/edit', book.id]">
-            <img [src]="book.coverImage || 'assets/images/default-cover.jpg'" [alt]="book.title">
+          <mat-card *ngFor="let book of books" class="book-card" [routerLink]="['/books/edit', book.id]" (click)="selectBook(book, $event)">
+            <img [src]="getImageUrl(book.coverImage)" [alt]="book.title">
             <div class="book-info">
               <h3>{{book.title}}</h3>
               <p>{{book.genre}}</p>
@@ -90,7 +91,8 @@ import { Book } from '../../models/book.interface';
           <h3>No books yet</h3>
           <p>Start writing your first book!</p>
           <button mat-raised-button color="primary" routerLink="/books/new" *ngIf="isAuthor">
-            Create New Book
+            <mat-icon>add</mat-icon>
+            New Book
           </button>
         </div>
       </main>
@@ -122,10 +124,21 @@ import { Book } from '../../models/book.interface';
   `]
 })
 export class BookListComponent implements OnInit {
+  @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
+  
   books: Book[] = [];
   loading = false;
   error: string | null = null;
   isAuthor = false;
+  selectedBookId: number | null = null;
+  
+  // Pagination
+  currentPage = 0;
+  pageSize = 12;
+  totalBooks = 0;
+  totalPages = 0;
+
+  private readonly API_URL = 'http://localhost:8080';
 
   constructor(
     private bookService: BookService,
@@ -141,10 +154,12 @@ export class BookListComponent implements OnInit {
     this.loading = true;
     this.error = null;
 
-    this.bookService.getMyBooks().subscribe({
+    this.bookService.getMyBooks(this.currentPage, this.pageSize).subscribe({
       next: (response) => {
         console.log('Books loaded:', response);
         this.books = response.content;
+        this.totalBooks = response.totalElements;
+        this.totalPages = response.totalPages;
         this.loading = false;
       },
       error: (error) => {
@@ -153,5 +168,74 @@ export class BookListComponent implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  onPageChange(event: any) {
+    this.currentPage = event.pageIndex;
+    this.pageSize = event.pageSize;
+    this.loadBooks();
+  }
+
+  getImageUrl(coverImage: string | null): string {
+    return this.bookService.getImageUrl(coverImage);
+  }
+
+  selectBook(book: Book, event: Event): void {
+    event.stopPropagation();
+    this.selectedBookId = book.id;
+    this.fileInput.nativeElement.click();
+  }
+
+  onFileSelected(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file || !this.selectedBookId) return;
+
+    // Validate file type and size
+    if (!file.type.startsWith('image/')) {
+      this.error = 'Please select an image file';
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      this.error = 'Image size should be less than 5MB';
+      return;
+    }
+
+    this.loading = true;
+    this.error = null;
+
+    this.bookService.uploadCoverImage(file).subscribe({
+      next: (response) => {
+        if (response?.url) {
+          this.updateBookCover(response.url);
+        }
+        this.loading = false;
+      },
+      error: (error) => {
+        console.error('Error uploading image:', error);
+        this.error = error.message || 'Failed to upload image';
+        this.loading = false;
+      }
+    });
+  }
+
+  private updateBookCover(imageUrl: string): void {
+    if (this.selectedBookId) {
+      const updateData = {
+        coverImage: imageUrl
+      };
+      
+      this.bookService.updateBook(this.selectedBookId, updateData).subscribe({
+        next: () => {
+          this.loadBooks();
+          this.selectedBookId = null;
+        },
+        error: (error) => {
+          console.error('Error updating book cover:', error);
+          this.error = error.message || 'Failed to update book cover';
+        }
+      });
+    }
   }
 } 

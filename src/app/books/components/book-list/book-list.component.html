@@ -1,0 +1,36 @@
+<div class="book-container">
+  <!-- ... existing header ... -->
+
+  <!-- Books grid -->
+  <div class="book-grid" *ngIf="!loading && !error && books.length > 0">
+    <mat-card *ngFor="let book of books" class="book-card" [routerLink]="['/books/edit', book.id]">
+      <img [src]="getImageUrl(book.coverImage)" [alt]="book.title">
+      <div class="book-info">
+        <h3>{{book.title}}</h3>
+        <p>{{book.genre}}</p>
+        <div class="book-actions">
+          <button mat-icon-button (click)="selectBook(book, $event)">
+            <mat-icon>image</mat-icon>
+          </button>
+          <button mat-icon-button (click)="$event.stopPropagation()">
+            <mat-icon>share</mat-icon>
+          </button>
+        </div>
+      </div>
+    </mat-card>
+  </div>
+
+  <!-- Hidden file input -->
+  <input #fileInput type="file" hidden (change)="onFileSelected($event)" accept="image/*">
+
+  <!-- Pagination -->
+  <mat-paginator *ngIf="totalBooks > 0"
+    [length]="totalBooks"
+    [pageSize]="pageSize"
+    [pageSizeOptions]="[12, 24, 36, 48]"
+    [showFirstLastButtons]="true"
+    (page)="onPageChange($event)">
+  </mat-paginator>
+
+  <!-- ... existing empty state ... -->
+</div> 
