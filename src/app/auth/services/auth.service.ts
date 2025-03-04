@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
-import { BehaviorSubject, Observable, throwError, timer } from 'rxjs';
+import { BehaviorSubject, Observable, throwError, timer, of } from 'rxjs';
 import { tap, catchError, map, switchMap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { 
@@ -394,4 +394,24 @@ export class AuthService {
       error: this.authState.value.error
     });
   }
-} 
+
+  verifyToken(): Observable<any> {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      return throwError(() => new Error('No token found'));
+    }
+
+    const headers = new HttpHeaders({
+      'Authorization': `Bearer ${token}`
+    });
+
+    return this.http.get(`${this.API_URL}/verify`, { headers }).pipe(
+      catchError(error => {
+        if (error.status === 401 || error.status === 403) {
+          return throwError(() => new Error('Invalid or expired token'));
+        }
+        return throwError(() => error);
+      })
+    );
+  }
+}

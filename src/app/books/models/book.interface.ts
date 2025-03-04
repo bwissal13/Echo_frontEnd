@@ -30,14 +30,15 @@ export interface CreateBookRequest {
   description: string;
   genre: Genre;
   isPublic: boolean;
-  coverImage?: string;
+  coverImage?: string | null;
+  chapters?: Chapter[];
 }
 
 export interface UpdateBookRequest {
-  title: string;
-  description: string;
-  genre: Genre;
-  isPublic: boolean;
+  title?: string;
+  description?: string;
+  genre?: Genre;
+  isPublic?: boolean;
   coverImage?: string | null;
 }
 

@@ -16,6 +16,7 @@ import { Subject, merge, Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { AuthService } from '../../../auth/services/auth.service';
 import { BecomeAuthorDialogComponent } from '../become-author-dialog/become-author-dialog.component';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 @Component({
   selector: 'app-book-editor',
@@ -29,6 +30,7 @@ import { BecomeAuthorDialogComponent } from '../become-author-dialog/become-auth
     MatDialogModule,
     MatDividerModule,
     MatSnackBarModule,
+    MatProgressSpinnerModule,
     ChapterListComponent
   ],
   templateUrl: './book-editor.component.html',
@@ -52,7 +54,11 @@ export class BookEditorComponent implements OnInit, OnDestroy {
   selectedGenre: Genre = Genre.FICTION;
   errorMessage: string | null = null;
   isBookSaved = false;
-  private apiUrl = 'http://localhost:8080'; // Or your actual API URL
+  private readonly API_URL = 'http://localhost:8080'; // Use direct URL for now
+  bookSubtitle: string = '';
+  authorName: string = '';
+  private readonly DEFAULT_COVER = 'assets/images/default-book-cover.jpg';
+  isUploading = false;
 
   constructor(
     private router: Router,
@@ -85,26 +91,34 @@ export class BookEditorComponent implements OnInit, OnDestroy {
         this.saveBook();
       }
     });
+
+    // Set default cover image immediately
+    if (!this.coverImageUrl) {
+      this.coverImageUrl = `url('${this.DEFAULT_COVER}')`;
+    }
+  }
+
+  getImageUrl(coverImage: string | null): string {
+    if (!coverImage) {
+      return this.DEFAULT_COVER;
+    }
+    return coverImage.startsWith('http') 
+      ? coverImage 
+      : `${this.API_URL}${coverImage}`;
   }
 
   loadBook(id: number): void {
     this.bookService.getBook(id).subscribe({
-      next: (book: Book) => {
+      next: (book) => {
         this.bookTitle = book.title;
         this.bookContent = book.description;
         this.coverImage = book.coverImage;
+        this.selectedGenre = book.genre;
         this.chapters = book.chapters || [];
         this.lastEdited = new Date(book.updatedAt);
-        
-        if (book.coverImage) {
-          const cleanUrl = book.coverImage.replace(/^url\(['"]?|['"]?\)$/g, '');
-          this.coverImageUrl = `url('${cleanUrl}')`;
-          console.log('Loaded coverImageUrl:', this.coverImageUrl); // Debug log
-        } else {
-          this.coverImageUrl = null;
-        }
+        this.coverImageUrl = `url('${this.bookService.getImageUrl(book.coverImage)}')`;
       },
-      error: (error: any) => {
+      error: (error) => {
         console.error('Error loading book:', error);
         this.showSnackBar('Failed to load book', 'error');
       }
@@ -112,90 +126,118 @@ export class BookEditorComponent implements OnInit, OnDestroy {
   }
 
   saveBook(): void {
-    // Validate required fields
-    if (!this.bookTitle?.trim()) {
-      this.showSnackBar('Please enter a book title', 'error');
+    if (!this.bookTitle.trim()) {
+      this.showSnackBar('Book title is required', 'error');
       return;
     }
 
-    if (!this.selectedGenre) {
-      this.showSnackBar('Please select a genre', 'error');
-      return;
-    }
+    // Show loading state
+    this.isUploading = true;
 
-    // Create book object with all required fields
-    const book = {
+    // Prepare the book data
+    const bookData = {
       title: this.bookTitle.trim(),
-      description: this.bookContent || '',  // Allow empty description
-      genre: this.selectedGenre as Genre,
+      description: this.bookContent || '',
+      genre: this.selectedGenre,
       isPublic: false,
-      coverImage: this.coverImage || null,
+      coverImage: this.coverImage || undefined,
+      subtitle: this.bookSubtitle,
+      authorName: this.authorName,
       chapters: this.chapters || []
     };
 
-    console.log('Saving book:', book);
-
-    this.bookService.createBook(book).subscribe({
-      next: (response) => {
-        console.log('Book saved successfully:', response);
-        this.isBookSaved = true;
-        this.showSnackBar('Book saved successfully!', 'success');
-        this.router.navigate(['/books']);
-      },
-      error: (error) => {
-        console.error('Error saving book:', error);
-        this.showSnackBar(error.message || 'Failed to save book', 'error');
-      }
-    });
-  }
-
-  onFileSelected(event: Event): void {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (file) {
-      this.showSnackBar('Uploading image...', 'info');
-      
-      this.bookService.uploadCoverImage(file).subscribe({
+    // Determine if we're updating or creating
+    if (this.bookId) {
+      // Update existing book
+      this.bookService.updateBook(this.bookId, bookData).subscribe({
         next: (response) => {
-          if (response?.url) {
-            this.coverImage = response.url;
-            
-            const imageUrl = response.url.startsWith('http') ? response.url : `${this.apiUrl}${response.url}`;
-            this.coverImageUrl = `url('${imageUrl}')`;
-            
-            if (this.bookId) {
-              this.bookService.updateBook(this.bookId, {
-                title: this.bookTitle,
-                description: this.bookContent,
-                genre: this.selectedGenre as Genre,
-                isPublic: false,
-                coverImage: this.coverImage
-              }).subscribe({
-                next: () => {
-                  this.lastEdited = new Date();
-                  this.showSnackBar('Cover image updated successfully', 'success');
-                },
-                error: (error) => {
-                  console.error('Error updating book with new cover:', error);
-                  this.showSnackBar('Failed to update book with new cover', 'error');
-                }
-              });
-            } else {
-              this.lastEdited = new Date();
-              this.showSnackBar('Cover image uploaded successfully', 'success');
-            }
-          }
+          console.log('Book updated successfully:', response);
+          this.isBookSaved = true;
+          this.isUploading = false;
+          this.lastEdited = new Date();
+          this.showSnackBar('Book updated successfully!', 'success');
         },
         error: (error) => {
-          console.error('Error uploading cover image:', error);
-          this.showSnackBar(error.message || 'Failed to upload cover image', 'error');
+          console.error('Error updating book:', error);
+          this.isUploading = false;
+          if (error.status === 403) {
+            this.handleAuthError();
+          } else {
+            this.showSnackBar(error.message || 'Failed to update book', 'error');
+          }
+        }
+      });
+    } else {
+      // Create new book
+      this.bookService.createBook(bookData).subscribe({
+        next: (response) => {
+          console.log('Book created successfully:', response);
+          this.isBookSaved = true;
+          this.isUploading = false;
+          this.showSnackBar('Book created successfully!', 'success');
+          this.router.navigate(['/books']);
         },
-        complete: () => {
-          if (this.fileInput) {
-            this.fileInput.nativeElement.value = '';
+        error: (error) => {
+          console.error('Error creating book:', error);
+          this.isUploading = false;
+          if (error.status === 403) {
+            this.handleAuthError();
+          } else {
+            this.showSnackBar(error.message || 'Failed to create book', 'error');
           }
         }
       });
     }
+  }
+
+  onFileSelected(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+
+    this.isUploading = true;
+    this.showSnackBar('Uploading image...', 'info');
+
+    this.bookService.uploadCoverImage(file).subscribe({
+      next: (response) => {
+        console.log('Upload response:', response);
+        this.coverImage = response.url;
+        this.coverImageUrl = `url('${this.bookService.getImageUrl(response.url)}')`;
+        this.isUploading = false;
+        this.showSnackBar('Cover image uploaded successfully', 'success');
+        
+        if (this.bookId) {
+          this.updateBookCover(response.url);
+        }
+      },
+      error: (error) => {
+        console.error('Upload error:', error);
+        this.isUploading = false;
+        this.showSnackBar(error.message || 'Failed to upload image', 'error');
+        this.coverImageUrl = `url('${this.DEFAULT_COVER}')`;
+      }
+    });
+  }
+
+  private updateBookCover(imageUrl: string): void {
+    if (!this.bookId) return;
+
+    const updateData: UpdateBookRequest = {
+      title: this.bookTitle,
+      description: this.bookContent,
+      genre: this.selectedGenre,
+      isPublic: false,
+      coverImage: imageUrl || undefined
+    };
+    
+    this.bookService.updateBook(this.bookId, updateData).subscribe({
+      next: () => {
+        this.lastEdited = new Date();
+      },
+      error: (error) => {
+        console.error('Error updating book with new cover:', error);
+        this.showSnackBar('Failed to update book with new cover', 'error');
+      }
+    });
   }
 
   goBack(): void {
@@ -392,5 +434,72 @@ export class BookEditorComponent implements OnInit, OnDestroy {
       duration: type === 'info' ? undefined : 3000,
       panelClass: [`${type}-snackbar`]
     });
+  }
+
+  // Add a method for updating book details
+  updateBookDetails(): void {
+    if (!this.bookId) return;
+
+    // Create a complete update request with all required fields
+    const updateData: UpdateBookRequest = {
+      title: this.bookTitle,
+      description: this.bookContent,
+      genre: this.selectedGenre,
+      isPublic: false,
+      coverImage: this.coverImage
+    };
+    
+    this.bookService.updateBook(this.bookId, updateData).subscribe({
+      next: () => {
+        this.lastEdited = new Date();
+        this.showSnackBar('Book updated successfully', 'success');
+      },
+      error: (error) => {
+        console.error('Error updating book:', error);
+        if (error.status === 403) {
+          this.handleAuthError();
+        } else {
+          this.showSnackBar('Failed to update book', 'error');
+        }
+      }
+    });
+  }
+
+  removeCover(): void {
+    this.coverImage = '';
+    this.coverImageUrl = null;
+    
+    if (this.bookId) {
+      const updateData: UpdateBookRequest = {
+        title: this.bookTitle,
+        description: this.bookContent,
+        genre: this.selectedGenre,
+        isPublic: false,
+        coverImage: undefined
+      };
+      
+      this.bookService.updateBook(this.bookId, updateData).subscribe({
+        next: () => {
+          this.lastEdited = new Date();
+          this.showSnackBar('Cover image removed successfully', 'success');
+        },
+        error: (error) => {
+          console.error('Error removing cover:', error);
+          if (error.status === 403) {
+            this.handleAuthError();
+          } else {
+            this.showSnackBar('Failed to remove cover image', 'error');
+          }
+        }
+      });
+    }
+  }
+
+  private handleAuthError(): void {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    this.showSnackBar('Your session has expired. Please log in again.', 'error');
+    localStorage.setItem('redirectUrl', this.router.url);
+    this.router.navigate(['/login']);
   }
 } 

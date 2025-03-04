@@ -35,23 +35,50 @@
 
   <!-- Main Content Area -->
   <div class="content-area">
-    <!-- Cover Image Section -->
-    <div class="cover-section" [style.backgroundImage]="coverImageUrl || 'none'">
+    <!-- Book Cover Layout -->
+    <div class="book-cover-container">
+      <div class="book-cover">
+        <!-- Left Side - Cover Image -->
+        <div class="cover-image" 
+             [style.backgroundImage]="coverImageUrl || 'url(assets/images/default-book-cover.jpg)'"
+             (click)="!isUploading && fileInput.click()"
+             [class.uploading]="isUploading">
+          <div class="upload-overlay" *ngIf="isUploading">
+            <mat-spinner diameter="40"></mat-spinner>
+            <span>Uploading...</span>
+          </div>
+        </div>
+        
+        <!-- Right Side - Book Info -->
+        <div class="book-info">
+          <div class="book-title">
+            <input 
+              [(ngModel)]="bookTitle"
+              (ngModelChange)="onTitleChange()"
+              class="title-input" 
+              placeholder="Book Title"
+              required
+            >
+          </div>
+          
+          <div class="book-subtitle">
+            <input 
+              [(ngModel)]="bookSubtitle"
+              class="subtitle-input" 
+              placeholder="The subtitle texts"
+            >
+          </div>
+          
+          <div class="author-name">
+            <input 
+              [(ngModel)]="authorName"
+              class="author-input" 
+              placeholder="AUTHOR NAME"
+            >
+          </div>
+        </div>
+      </div>
       <input #fileInput type="file" hidden (change)="onFileSelected($event)" accept="image/*">
-      <button mat-icon-button class="change-cover" (click)="fileInput.click()">
-        <mat-icon>{{ coverImageUrl ? 'edit' : 'add_photo_alternate' }}</mat-icon>
-      </button>
-    </div>
-
-    <!-- Title Section -->
-    <div class="title-section">
-      <input 
-        [(ngModel)]="bookTitle"
-        (ngModelChange)="onTitleChange()"
-        class="title-input" 
-        placeholder="Enter your book title..."
-        required
-      >
     </div>
 
     <!-- Description Editor -->
@@ -108,7 +135,7 @@
   </button>
   <button mat-menu-item (click)="saveBook()">
     <mat-icon>save</mat-icon>
-    Save as draft
+    {{ bookId ? 'Save changes' : 'Save as draft' }}
   </button>
   <button mat-menu-item (click)="publish()">
     <mat-icon>publish</mat-icon>

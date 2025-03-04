@@ -9,44 +9,54 @@ import { Book, CreateBookRequest, UpdateBookRequest, BookPage, Chapter, CreateCh
   providedIn: 'root'
 })
 export class BookService {
-  private readonly API_URL = `${environment.apiUrl}/api/v1/books`;
+  private readonly API_URL = 'http://localhost:8080/api/v1/books';
+  private readonly FILE_API_URL = 'http://localhost:8080/api/v1/files';
 
   constructor(private http: HttpClient) {}
 
-  getBooks(page: number = 0, size: number = 10, search?: string): Observable<BookPage> {
-    let url = `${this.API_URL}?page=${page}&size=${size}`;
-    if (search) {
-      url += `&search=${search}`;
-    }
-    return this.http.get<BookPage>(url);
-  }
-
-  getBook(id: number): Observable<Book> {
-    return this.http.get<Book>(`${this.API_URL}/${id}`);
-  }
-
-  getMyBooks(page: number = 0, size: number = 10): Observable<BookPage> {
+  private getHeaders(): HttpHeaders {
     const token = localStorage.getItem('token');
-    if (!token) {
-      return throwError(() => new Error('No authentication token found'));
-    }
+    return new HttpHeaders({
+      'Authorization': `Bearer ${token}`
+    });
+  }
 
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+  getBooks(page: number = 0, size: number = 12): Observable<BookPage> {
     const params = new HttpParams()
       .set('page', page.toString())
       .set('size', size.toString())
-      .set('sort', 'createdAt,desc');
+      .set('sort', 'updatedAt,desc');  // Sort by last updated
 
-    return this.http.get<BookPage>(`${this.API_URL}/me`, { headers, params }).pipe(
+    return this.http.get<BookPage>(`${this.API_URL}`, { 
+      headers: this.getHeaders(),
+      params 
+    }).pipe(
+      tap(response => console.log('Books response:', response)),
+      catchError(error => {
+        console.error('Error fetching books:', error);
+        return throwError(() => new Error('Failed to fetch books'));
+      })
+    );
+  }
+
+  getBook(id: number): Observable<Book> {
+    return this.http.get<Book>(`${this.API_URL}/${id}`, { headers: this.getHeaders() });
+  }
+
+  getMyBooks(page: number = 0, size: number = 12): Observable<BookPage> {
+    const params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString())
+      .set('sort', 'updatedAt,desc');
+
+    return this.http.get<BookPage>(`${this.API_URL}/me`, { 
+      headers: this.getHeaders(),
+      params 
+    }).pipe(
       tap(response => console.log('My books response:', response)),
       catchError(error => {
         console.error('Error fetching my books:', error);
-        if (error.status === 401) {
-          return throwError(() => new Error('Please log in to view your books'));
-        } else if (error.status === 403) {
-          return throwError(() => new Error('You don\'t have permission to view these books'));
-        }
-        return throwError(() => new Error('Failed to fetch your books. Please try again.'));
+        return throwError(() => new Error('Failed to fetch your books'));
       })
     );
   }
@@ -69,47 +79,28 @@ export class BookService {
     return this.http.get<BookPage>(`${this.API_URL}/search`, { params });
   }
 
-  createBook(book: any): Observable<any> {
-    const token = localStorage.getItem('token');
-    
-    const headers = new HttpHeaders({
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    });
-
-    const bookData = {
-      title: book.title?.trim(),
-      description: book.description?.trim() || '',
-      genre: book.genre,
-      isPublic: book.isPublic || false,
-      coverImage: book.coverImage || null,
-      chapters: book.chapters || []
-    };
-
-    return this.http.post<any>(this.API_URL, bookData, { headers }).pipe(
+  createBook(book: CreateBookRequest): Observable<Book> {
+    return this.http.post<Book>(this.API_URL, book, { headers: this.getHeaders() }).pipe(
       catchError(error => {
-        console.error('Error in createBook:', error);
-        
-        if (error.status === 400) {
-          const validationErrors = error.error?.errors || error.error?.message;
-          if (typeof validationErrors === 'object') {
-            const messages = Object.values(validationErrors).join(', ');
-            return throwError(() => new Error(`Validation failed: ${messages}`));
-          }
-          return throwError(() => new Error(validationErrors || 'Validation failed'));
-        }
-        
+        console.error('Error creating book:', error);
         if (error.status === 403) {
           return throwError(() => new Error('You do not have permission to create books'));
         }
-        
-        return throwError(() => new Error('Failed to create book. Please try again.'));
+        return throwError(() => new Error('Failed to create book'));
       })
     );
   }
 
   updateBook(id: number, book: UpdateBookRequest): Observable<Book> {
-    return this.http.put<Book>(`${this.API_URL}/${id}`, book);
+    return this.http.put<Book>(`${this.API_URL}/${id}`, book, { headers: this.getHeaders() }).pipe(
+      catchError(error => {
+        console.error('Error updating book:', error);
+        if (error.status === 403) {
+          return throwError(() => new Error('You do not have permission to update this book'));
+        }
+        return throwError(() => new Error('Failed to update book'));
+      })
+    );
   }
 
   deleteBook(id: number): Observable<void> {
@@ -120,7 +111,7 @@ export class BookService {
     const formData = new FormData();
     formData.append('file', file);
     
-    return this.http.post<{url: string}>(`${environment.apiUrl}/api/v1/files/upload`, formData).pipe(
+    return this.http.post<{url: string}>(`${this.FILE_API_URL}/upload`, formData).pipe(
       tap(response => {
         console.log('Upload response:', response);
         if (!response?.url) {
@@ -129,12 +120,24 @@ export class BookService {
       }),
       catchError(error => {
         console.error('Upload error:', error);
-        if (error.status === 404) {
-          return throwError(() => new Error('Upload endpoint not found'));
+        if (error.status === 403) {
+          return throwError(() => new Error('You do not have permission to upload files'));
+        }
+        if (error.status === 413) {
+          return throwError(() => new Error('File size too large'));
         }
         return throwError(() => new Error('Failed to upload image'));
       })
     );
+  }
+
+  getImageUrl(coverImage: string | null): string {
+    if (!coverImage) {
+      return 'assets/images/default-book-cover.jpg';
+    }
+    return coverImage.startsWith('http') 
+      ? coverImage 
+      : `${this.FILE_API_URL}${coverImage}`;
   }
 
   uploadImage(file: File): Observable<{url: string}> {
