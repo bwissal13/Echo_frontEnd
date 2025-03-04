@@ -20,14 +20,9 @@ export enum Genre {
   FICTION = 'FICTION',
   NON_FICTION = 'NON_FICTION',
   SCIENCE_FICTION = 'SCIENCE_FICTION',
-  FANTASY = 'FANTASY',
   MYSTERY = 'MYSTERY',
-  THRILLER = 'THRILLER',
   ROMANCE = 'ROMANCE',
-  HORROR = 'HORROR',
-  POETRY = 'POETRY',
-  DRAMA = 'DRAMA',
-  OTHER = 'OTHER'
+  FANTASY = 'FANTASY'
 }
 
 export interface CreateBookRequest {
@@ -38,7 +33,13 @@ export interface CreateBookRequest {
   coverImage?: string;
 }
 
-export interface UpdateBookRequest extends CreateBookRequest {}
+export interface UpdateBookRequest {
+  title: string;
+  description: string;
+  genre: Genre;
+  isPublic: boolean;
+  coverImage?: string | null;
+}
 
 export interface BookPage {
   content: Book[];

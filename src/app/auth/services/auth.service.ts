@@ -12,7 +12,9 @@ import {
   VerifyEmailData,
   ForgotPasswordData,
   ResetPasswordData,
-  OtpResponse 
+  OtpResponse,
+  RoleChangeRequest,
+  RoleChangeResponse
 } from '../models/auth.interface';
 import { ApiError } from '../models/api-error.interface';
 import { Router } from '@angular/router';
@@ -307,5 +309,89 @@ export class AuthService {
     });
 
     return throwError(() => errorMessage);
+  }
+
+  getCurrentUser(): Observable<any> {
+    return this.http.get(`${this.API_URL}/me`);
+  }
+
+  becomeAuthor(): Observable<any> {
+    return this.http.post(`${this.API_URL}/become-author`, {});
+  }
+
+  hasRole(role: string): boolean {
+    const token = localStorage.getItem(this.TOKEN_KEY);
+    if (!token) return false;
+    
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const decodedToken = JSON.parse(window.atob(base64));
+      
+      // Vérifier si le token contient les rôles
+      if (decodedToken && decodedToken.roles) {
+        console.log('User roles:', decodedToken.roles);
+        return decodedToken.roles.includes(role);
+      }
+      return false;
+    } catch (e) {
+      console.error('Error decoding token:', e);
+      return false;
+    }
+  }
+
+  requestAuthorRole(reason: string): Observable<RoleChangeResponse> {
+    const token = localStorage.getItem(this.TOKEN_KEY);
+    if (!token) {
+      return throwError(() => new Error('No authentication token found'));
+    }
+
+    const headers = new HttpHeaders()
+      .set('Authorization', `Bearer ${token}`)
+      .set('Content-Type', 'application/json');
+
+    const request: RoleChangeRequest = {
+      requestedRole: 'AUTHOR',
+      reason: reason
+    };
+
+    return this.http.post<RoleChangeResponse>(
+      `${environment.apiUrl}/api/v1/roles/request`,
+      request,
+      { headers }
+    ).pipe(
+      tap(response => {
+        console.log('Role request response:', response);
+        if (response.status === 'APPROVED') {
+          this.refreshUserInfo();
+        }
+      }),
+      catchError(error => {
+        console.error('Role request error:', error);
+        if (error.status === 500) {
+          return throwError(() => new Error('Server error. Please try again later.'));
+        } else if (error.status === 404) {
+          return throwError(() => new Error('Role request endpoint not found. Please contact support.'));
+        }
+        return throwError(() => error.error?.message || 'Failed to submit request');
+      })
+    );
+  }
+
+  private refreshUserInfo(): void {
+    this.getCurrentUser().subscribe({
+      next: (user) => {
+        this.updateAuthState({ user, isAuthenticated: true });
+      }
+    });
+  }
+
+  private updateAuthState(newState: Partial<AuthState>): void {
+    this.authState.next({
+      ...this.authState.value,
+      ...newState,
+      loading: this.authState.value.loading,
+      error: this.authState.value.error
+    });
   }
 } 

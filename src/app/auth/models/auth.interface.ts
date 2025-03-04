@@ -3,6 +3,12 @@ export enum UserRole {
   ADMIN = 'ADMIN'
 }
 
+export enum Role {
+  USER = 'USER',
+  AUTHOR = 'AUTHOR',
+  ADMIN = 'ADMIN'
+}
+
 export interface User {
   id: number;
   email: string;
@@ -70,4 +76,15 @@ export interface ResetPasswordData {
 export interface OtpResponse {
   message: string;
   expiresIn: number;
+}
+
+export interface RoleChangeRequest {
+  requestedRole: string;
+  reason: string;
+}
+
+export interface RoleChangeResponse {
+  id: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  message?: string;
 } 

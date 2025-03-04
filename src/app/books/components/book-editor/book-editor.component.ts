@@ -7,16 +7,15 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 import { Router, ActivatedRoute } from '@angular/router';
-import { QuillModule } from 'ngx-quill';
-import { quillConfig } from '../../config/quill-config';
 import { BookService } from '../../services/book.service';
-import { Genre, CreateChapterRequest, Chapter, Book, UpdateChapterRequest } from '../../models/book.interface';
-import { QuillEditorComponent } from 'ngx-quill';
+import { Genre, CreateChapterRequest, Chapter, Book, UpdateChapterRequest, CreateBookRequest, UpdateBookRequest } from '../../models/book.interface';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { ChapterListComponent } from '../chapter-list/chapter-list.component';
 import { ChapterDialogComponent } from '../chapter-dialog/chapter-dialog.component';
 import { Subject, merge, Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { AuthService } from '../../../auth/services/auth.service';
+import { BecomeAuthorDialogComponent } from '../become-author-dialog/become-author-dialog.component';
 
 @Component({
   selector: 'app-book-editor',
@@ -30,7 +29,6 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
     MatDialogModule,
     MatDividerModule,
     MatSnackBarModule,
-    QuillModule,
     ChapterListComponent
   ],
   templateUrl: './book-editor.component.html',
@@ -38,8 +36,6 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 })
 export class BookEditorComponent implements OnInit, OnDestroy {
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
-  @ViewChild('quillEditor') quillEditor!: QuillEditorComponent;
-  @ViewChild('slashMenu') slashMenu!: ElementRef;
   
   coverImage: string = '';
   bookTitle: string = '';
@@ -47,60 +43,46 @@ export class BookEditorComponent implements OnInit, OnDestroy {
   chapters: Chapter[] = [];
   currentChapter: Chapter | null = null;
   bookId: number | null = null;
-  quillModules = quillConfig.modules || {};
   lastEdited: Date = new Date();
-  coverImageUrl: string = '';
+  coverImageUrl: string | null = null;
   private contentChange = new Subject<string>();
   private titleChange = new Subject<string>();
-  private autoSaveSubscription!: Subscription;
-  showSlashMenu = false;
-  slashMenuPosition = { top: 0, left: 0 };
+  private autoSaveSubscription?: Subscription;
+  genres = Object.values(Genre);
+  selectedGenre: Genre = Genre.FICTION;
+  errorMessage: string | null = null;
+  isBookSaved = false;
+  private apiUrl = 'http://localhost:8080'; // Or your actual API URL
 
   constructor(
     private router: Router,
     private route: ActivatedRoute,
     private bookService: BookService,
+    private authService: AuthService,
     private dialog: MatDialog,
     private snackBar: MatSnackBar
   ) {}
 
   ngOnInit(): void {
-    // Récupérer l'ID du livre si on est en mode édition
-    this.route.params.subscribe(params => {
-      if (params['id']) {
-        this.bookId = +params['id'];
-        this.loadBook(this.bookId);
-      }
-    });
+    const token = localStorage.getItem('token');
+    if (!token) {
+      this.router.navigate(['/login']);
+      return;
+    }
 
-    // Configurer la sauvegarde automatique
+    const bookId = this.route.snapshot.params['id'];
+    if (bookId) {
+      this.bookId = bookId;
+      this.loadBook(bookId);
+    }
+
+    // Setup auto-save
     this.autoSaveSubscription = merge(
-      this.contentChange.pipe(
-        debounceTime(1000),
-        distinctUntilChanged()
-      ),
-      this.titleChange.pipe(
-        debounceTime(1000),
-        distinctUntilChanged()
-      )
+      this.contentChange.pipe(debounceTime(2000)),
+      this.titleChange.pipe(debounceTime(2000))
     ).subscribe(() => {
       if (this.bookId) {
-        this.saveAsDraft();
-      }
-    });
-  }
-
-  ngAfterViewInit() {
-    const quill = this.quillEditor.quillEditor;
-    quill.on('text-change', (delta: any, oldDelta: any, source: string) => {
-      if (source === 'user' && delta.ops?.some((op: any) => op.insert === '/')) {
-        this.showSlashCommand();
-      }
-    });
-
-    quill.root.addEventListener('keydown', (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && this.showSlashMenu) {
-        this.showSlashMenu = false;
+        this.saveBook();
       }
     });
   }
@@ -113,78 +95,118 @@ export class BookEditorComponent implements OnInit, OnDestroy {
         this.coverImage = book.coverImage;
         this.chapters = book.chapters || [];
         this.lastEdited = new Date(book.updatedAt);
-        this.coverImageUrl = this.coverImage ? `url(${this.coverImage})` : 'none';
+        
+        if (book.coverImage) {
+          const cleanUrl = book.coverImage.replace(/^url\(['"]?|['"]?\)$/g, '');
+          this.coverImageUrl = `url('${cleanUrl}')`;
+          console.log('Loaded coverImageUrl:', this.coverImageUrl); // Debug log
+        } else {
+          this.coverImageUrl = null;
+        }
       },
       error: (error: any) => {
         console.error('Error loading book:', error);
-        this.showErrorMessage('Failed to load book');
+        this.showSnackBar('Failed to load book', 'error');
       }
     });
+  }
+
+  saveBook(): void {
+    // Validate required fields
+    if (!this.bookTitle?.trim()) {
+      this.showSnackBar('Please enter a book title', 'error');
+      return;
+    }
+
+    if (!this.selectedGenre) {
+      this.showSnackBar('Please select a genre', 'error');
+      return;
+    }
+
+    // Create book object with all required fields
+    const book = {
+      title: this.bookTitle.trim(),
+      description: this.bookContent || '',  // Allow empty description
+      genre: this.selectedGenre as Genre,
+      isPublic: false,
+      coverImage: this.coverImage || null,
+      chapters: this.chapters || []
+    };
+
+    console.log('Saving book:', book);
+
+    this.bookService.createBook(book).subscribe({
+      next: (response) => {
+        console.log('Book saved successfully:', response);
+        this.isBookSaved = true;
+        this.showSnackBar('Book saved successfully!', 'success');
+        this.router.navigate(['/books']);
+      },
+      error: (error) => {
+        console.error('Error saving book:', error);
+        this.showSnackBar(error.message || 'Failed to save book', 'error');
+      }
+    });
+  }
+
+  onFileSelected(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (file) {
+      this.showSnackBar('Uploading image...', 'info');
+      
+      this.bookService.uploadCoverImage(file).subscribe({
+        next: (response) => {
+          if (response?.url) {
+            this.coverImage = response.url;
+            
+            const imageUrl = response.url.startsWith('http') ? response.url : `${this.apiUrl}${response.url}`;
+            this.coverImageUrl = `url('${imageUrl}')`;
+            
+            if (this.bookId) {
+              this.bookService.updateBook(this.bookId, {
+                title: this.bookTitle,
+                description: this.bookContent,
+                genre: this.selectedGenre as Genre,
+                isPublic: false,
+                coverImage: this.coverImage
+              }).subscribe({
+                next: () => {
+                  this.lastEdited = new Date();
+                  this.showSnackBar('Cover image updated successfully', 'success');
+                },
+                error: (error) => {
+                  console.error('Error updating book with new cover:', error);
+                  this.showSnackBar('Failed to update book with new cover', 'error');
+                }
+              });
+            } else {
+              this.lastEdited = new Date();
+              this.showSnackBar('Cover image uploaded successfully', 'success');
+            }
+          }
+        },
+        error: (error) => {
+          console.error('Error uploading cover image:', error);
+          this.showSnackBar(error.message || 'Failed to upload cover image', 'error');
+        },
+        complete: () => {
+          if (this.fileInput) {
+            this.fileInput.nativeElement.value = '';
+          }
+        }
+      });
+    }
   }
 
   goBack(): void {
     this.router.navigate(['/books']);
   }
 
-  saveAsDraft(): void {
-    const book = {
-      title: this.bookTitle,
-      description: this.bookContent,
-      genre: Genre.FICTION,
-      isPublic: false,
-      coverImage: this.coverImage
-    };
-
-    if (this.bookId) {
-      // Update existing book
-      this.bookService.updateBook(this.bookId, book).subscribe({
-        next: (response) => {
-          console.log('Book saved as draft:', response);
-          this.showSuccessMessage('Book saved as draft');
-        },
-        error: (error) => {
-          console.error('Error saving book:', error);
-          this.showErrorMessage('Failed to save book');
-        }
-      });
-    } else {
-      // Create new book
-      this.bookService.createBook(book).subscribe({
-        next: (response) => {
-          console.log('Book created as draft:', response);
-          this.bookId = response.id;
-          this.showSuccessMessage('Book saved as draft');
-        },
-        error: (error) => {
-          console.error('Error creating book:', error);
-          this.showErrorMessage('Failed to create book');
-        }
-      });
-    }
-  }
-
-  private showSuccessMessage(message: string): void {
-    this.snackBar.open(message, 'Close', {
-      duration: 3000,
-      horizontalPosition: 'center',
-      verticalPosition: 'bottom'
-    });
-  }
-
-  private showErrorMessage(message: string): void {
-    this.snackBar.open(message, 'Close', {
-      duration: 5000,
-      horizontalPosition: 'center',
-      verticalPosition: 'bottom',
-      panelClass: ['error-snackbar']
-    });
-  }
-
   publish(): void {
     const book = {
       title: this.bookTitle,
       description: this.bookContent,
-      genre: Genre.FICTION, // À modifier selon les besoins
+      genre: this.selectedGenre,
       isPublic: true,
       coverImage: this.coverImage
     };
@@ -211,11 +233,11 @@ export class BookEditorComponent implements OnInit, OnDestroy {
           next: (response) => {
             this.coverImage = response.url;
             this.coverImageUrl = `url(${this.coverImage})`;
-            this.showSuccessMessage('Cover image uploaded successfully');
+            this.showSnackBar('Cover image uploaded successfully', 'success');
           },
           error: (error) => {
             console.error('Error uploading cover image:', error);
-            this.showErrorMessage('Failed to upload cover image');
+            this.showSnackBar('Failed to upload cover image', 'error');
           }
         });
       }
@@ -232,12 +254,14 @@ export class BookEditorComponent implements OnInit, OnDestroy {
       if (file) {
         this.bookService.uploadImage(file).subscribe({
           next: (response) => {
-            const quill = this.quillEditor.quillEditor;
-            const range = quill.getSelection(true);
-            quill.insertEmbed(range.index, 'image', response.url);
+            // Instead of using Quill, we'll append the image URL to the content
+            const imageTag = `\n<img src="${response.url}" alt="Uploaded image" />\n`;
+            this.bookContent += imageTag;
+            this.onContentChange(this.bookContent);
           },
           error: (error) => {
             console.error('Error uploading image:', error);
+            this.showSnackBar('Failed to upload image', 'error');
           }
         });
       }
@@ -298,11 +322,11 @@ export class BookEditorComponent implements OnInit, OnDestroy {
             if (index !== -1) {
               this.chapters[index] = updated;
             }
-            this.showSuccessMessage('Chapter updated successfully');
+            this.showSnackBar('Chapter updated successfully', 'success');
           },
           error: (error: any) => {
             console.error('Error updating chapter:', error);
-            this.showErrorMessage('Failed to update chapter');
+            this.showSnackBar('Failed to update chapter', 'error');
           }
         });
       }
@@ -326,80 +350,47 @@ export class BookEditorComponent implements OnInit, OnDestroy {
     }
   }
 
-  onFileSelected(event: Event): void {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (file) {
-      if (file.type.startsWith('image/')) {
-        this.bookService.uploadCoverImage(file).subscribe({
-          next: (response) => {
-            this.coverImage = response.url;
-            this.coverImageUrl = `url('${this.coverImage}')`;
-            this.onTitleChange(); // Trigger auto-save
-            this.showSuccessMessage('Cover image added successfully');
-          },
-          error: (error) => {
-            console.error('Error processing image:', error);
-            this.showErrorMessage('Failed to process image');
-          }
-        });
-      } else {
-        this.showErrorMessage('Please select an image file');
-      }
-    }
-  }
-
   onTitleChange(): void {
-    this.titleChange.next(this.bookTitle);
     this.lastEdited = new Date();
   }
 
-  onContentChange(): void {
-    this.contentChange.next(this.bookContent);
+  onContentChange(content: string): void {
+    this.bookContent = content;
     this.lastEdited = new Date();
+    this.contentChange.next(content);
   }
 
-  showSlashCommand() {
-    const quill = this.quillEditor.quillEditor;
-    const selection = quill.getSelection();
-    if (!selection) return;
-
-    const bounds = quill.getBounds(selection.index);
-    this.slashMenuPosition = {
-      top: bounds.top + bounds.height + 10,
-      left: bounds.left
-    };
-    this.showSlashMenu = true;
-  }
-
-  insertImage() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = (e: Event) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        this.bookService.uploadImage(file).subscribe({
-          next: (response) => {
-            const quill = this.quillEditor.quillEditor;
-            const range = quill.getSelection(true);
-            quill.insertEmbed(range.index, 'image', response.url);
-            quill.insertText(range.index + 1, '\n', 'user');
-            quill.setSelection(range.index + 2, 0);
-            this.showSlashMenu = false;
-          },
-          error: (error) => {
-            console.error('Error processing image:', error);
-            this.showErrorMessage('Failed to process image');
-          }
-        });
-      }
-    };
-    input.click();
+  selectGenre(genre: string): void {
+    this.selectedGenre = genre as Genre;
   }
 
   ngOnDestroy(): void {
     if (this.autoSaveSubscription) {
       this.autoSaveSubscription.unsubscribe();
     }
+  }
+
+  dismissError(): void {
+    this.errorMessage = null;
+  }
+
+  private showBecomeAuthorDialog(): void {
+    const dialogRef = this.dialog.open(BecomeAuthorDialogComponent, {
+      width: '400px',
+      disableClose: true
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (!result) {
+        this.router.navigate(['/books']);
+      }
+    });
+  }
+
+  private showSnackBar(message: string, type: 'success' | 'error' | 'info'): void {
+    this.snackBar.open(message, 'Close', {
+      duration: type === 'info' ? undefined : 3000,
+      panelClass: [`${type}-snackbar`]
+    });
   }
 } 

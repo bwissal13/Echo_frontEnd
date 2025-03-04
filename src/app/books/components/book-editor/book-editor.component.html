@@ -11,61 +11,58 @@
       </div>
     </div>
     <div class="right-actions">
-      <button mat-button class="share-button">
+      <button mat-button class="share-button" [disabled]="!isBookSaved">
         <mat-icon>share</mat-icon>
         Share
+      </button>
+      <button mat-button [matMenuTriggerFor]="genreMenu">
+        <mat-icon>category</mat-icon>
+        {{ selectedGenre || 'Select Genre' }}
       </button>
       <button mat-button [matMenuTriggerFor]="moreMenu">
         <mat-icon>more_horiz</mat-icon>
       </button>
-      <mat-menu #moreMenu="matMenu">
-        <button mat-menu-item (click)="saveAsDraft()">
-          <mat-icon>save</mat-icon>
-          Save as draft
-        </button>
-        <button mat-menu-item (click)="publish()">
-          <mat-icon>publish</mat-icon>
-          Publish
-        </button>
-        <mat-divider></mat-divider>
-        <button mat-menu-item (click)="fileInput.click()">
-          <mat-icon>image</mat-icon>
-          Change cover
-        </button>
-      </mat-menu>
     </div>
+  </div>
+
+  <!-- Add error message display -->
+  <div *ngIf="errorMessage" class="error-banner">
+    {{ errorMessage }}
+    <button mat-icon-button (click)="dismissError()">
+      <mat-icon>close</mat-icon>
+    </button>
   </div>
 
   <!-- Main Content Area -->
   <div class="content-area">
     <!-- Cover Image Section -->
-    <div class="cover-section" [style.background-image]="coverImageUrl">
-      <button mat-icon-button class="change-cover" (click)="fileInput.click()">
-        <mat-icon>add_photo_alternate</mat-icon>
-      </button>
+    <div class="cover-section" [style.backgroundImage]="coverImageUrl || 'none'">
       <input #fileInput type="file" hidden (change)="onFileSelected($event)" accept="image/*">
+      <button mat-icon-button class="change-cover" (click)="fileInput.click()">
+        <mat-icon>{{ coverImageUrl ? 'edit' : 'add_photo_alternate' }}</mat-icon>
+      </button>
     </div>
 
     <!-- Title Section -->
     <div class="title-section">
       <input 
+        [(ngModel)]="bookTitle"
+        (ngModelChange)="onTitleChange()"
         class="title-input" 
-        [(ngModel)]="bookTitle" 
-        placeholder="Untitled"
-        (input)="onTitleChange()"
+        placeholder="Enter your book title..."
+        required
       >
     </div>
 
     <!-- Description Editor -->
-    <div class="description-section">
-      <quill-editor
-        #quillEditor
+    <div class="content-section">
+      <textarea
         [(ngModel)]="bookContent"
-        [modules]="quillModules"
-        [placeholder]="''"
-        (onContentChanged)="onContentChange()"
-        class="editor-style">
-      </quill-editor>
+        (ngModelChange)="onContentChange($event)"
+        class="description-textarea"
+        placeholder="Write your book description here..."
+        rows="10">
+      </textarea>
     </div>
 
     <!-- Chapters Section -->
@@ -95,17 +92,31 @@
         </button>
       </div>
     </div>
-
-    <!-- Add this after the quill-editor -->
-    <div class="slash-menu" *ngIf="showSlashMenu" [style.top.px]="slashMenuPosition.top" [style.left.px]="slashMenuPosition.left">
-      <div class="slash-menu-item" (click)="insertImage()">
-        <mat-icon>image</mat-icon>
-        <div class="item-details">
-          <div class="item-title">Image</div>
-          <div class="item-description">Upload or embed with a link</div>
-        </div>
-      </div>
-      <!-- Add more menu items here -->
-    </div>
   </div>
-</div> 
+</div>
+
+<mat-menu #genreMenu="matMenu">
+  <button mat-menu-item *ngFor="let genre of genres" (click)="selectGenre(genre)">
+    {{ genre }}
+  </button>
+</mat-menu>
+
+<mat-menu #moreMenu="matMenu">
+  <button mat-menu-item [matMenuTriggerFor]="genreMenu">
+    <mat-icon>category</mat-icon>
+    Select Genre
+  </button>
+  <button mat-menu-item (click)="saveBook()">
+    <mat-icon>save</mat-icon>
+    Save as draft
+  </button>
+  <button mat-menu-item (click)="publish()">
+    <mat-icon>publish</mat-icon>
+    Publish
+  </button>
+  <mat-divider></mat-divider>
+  <button mat-menu-item (click)="fileInput.click()">
+    <mat-icon>image</mat-icon>
+    Change cover
+  </button>
+</mat-menu> 
