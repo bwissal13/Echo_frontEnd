@@ -6,9 +6,46 @@ import { MatButtonModule } from '@angular/material/button';
 @Component({
   selector: 'app-search-bar',
   standalone: true,
-  imports: [CommonModule, MatIconModule, MatButtonModule],
-  templateUrl: './search-bar.component.html',
-  styleUrls: ['./search-bar.component.scss']
+  imports: [MatIconModule],
+  template: `
+    <div class="search-bar">
+      <mat-icon>search</mat-icon>
+      <input type="text" placeholder="Search for books, authors, or genres...">
+    </div>
+  `,
+  styles: [`
+    .search-bar {
+      display: flex;
+      align-items: center;
+      background: #f5f5f5;
+      padding: 8px 16px;
+      border-radius: 8px;
+      gap: 12px;
+
+      mat-icon {
+        color: #666;
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+      }
+
+      input {
+        flex: 1;
+        border: none;
+        background: transparent;
+        font-size: 14px;
+        color: #333;
+        
+        &::placeholder {
+          color: #666;
+        }
+        
+        &:focus {
+          outline: none;
+        }
+      }
+    }
+  `]
 })
 export class SearchBarComponent {
   @Output() search = new EventEmitter<string>();
