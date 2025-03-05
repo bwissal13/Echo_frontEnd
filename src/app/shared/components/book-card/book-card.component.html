@@ -1,0 +1,12 @@
+<div class="book-card" [routerLink]="['/books/edit', book.id]" (click)="onSelect($event)">
+  <img [src]="imageUrl" [alt]="book.title">
+  <div class="book-info">
+    <h3>{{book.title}}</h3>
+    <p>{{formatGenre(book.genre)}}</p>
+    <div class="book-actions">
+      <button mat-icon-button (click)="$event.stopPropagation()">
+        <mat-icon>bookmark_border</mat-icon>
+      </button>
+    </div>
+  </div>
+</div> 

@@ -1,36 +1,49 @@
 <div class="book-container">
-  <!-- ... existing header ... -->
+  <!-- Left Sidebar -->
+  <app-sidebar></app-sidebar>
 
-  <!-- Books grid -->
-  <div class="book-grid" *ngIf="!loading && !error && books.length > 0">
-    <mat-card *ngFor="let book of books" class="book-card" [routerLink]="['/books/edit', book.id]">
-      <img [src]="getImageUrl(book.coverImage)" [alt]="book.title">
-      <div class="book-info">
-        <h3>{{book.title}}</h3>
-        <p>{{book.genre}}</p>
-        <div class="book-actions">
-          <button mat-icon-button (click)="selectBook(book, $event)">
-            <mat-icon>image</mat-icon>
-          </button>
-          <button mat-icon-button (click)="$event.stopPropagation()">
-            <mat-icon>share</mat-icon>
-          </button>
-        </div>
-      </div>
-    </mat-card>
-  </div>
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="flex justify-between items-center mb-6">
+      <app-search-bar></app-search-bar>
+      <button mat-raised-button color="primary" (click)="fileInput.click()" *ngIf="isAuthor">
+        <mat-icon>image</mat-icon>
+        Change Cover
+      </button>
+      <input #fileInput type="file" hidden (change)="onFileSelected($event)" accept="image/*">
+    </div>
 
-  <!-- Hidden file input -->
-  <input #fileInput type="file" hidden (change)="onFileSelected($event)" accept="image/*">
+    <!-- Loading spinner -->
+    <app-loading-spinner *ngIf="loading"></app-loading-spinner>
 
-  <!-- Pagination -->
-  <mat-paginator *ngIf="totalBooks > 0"
-    [length]="totalBooks"
-    [pageSize]="pageSize"
-    [pageSizeOptions]="[12, 24, 36, 48]"
-    [showFirstLastButtons]="true"
-    (page)="onPageChange($event)">
-  </mat-paginator>
+    <!-- Error message -->
+    <app-error-message *ngIf="error" [message]="error"></app-error-message>
 
-  <!-- ... existing empty state ... -->
+    <!-- Books grid -->
+    <div class="book-grid" *ngIf="!loading && !error && books.length > 0">
+      <app-book-card 
+        *ngFor="let book of books" 
+        [book]="book"
+        [imageUrl]="getImageUrl(book.coverImage)"
+        (selectBook)="selectBook(book, $event)"
+      ></app-book-card>
+    </div>
+
+    <!-- Pagination -->
+    <mat-paginator
+      *ngIf="!loading && !error && books.length > 0"
+      [length]="totalBooks"
+      [pageSize]="pageSize"
+      [pageSizeOptions]="pageSizeOptions"
+      [pageIndex]="currentPage"
+      (page)="onPageChange($event)"
+      aria-label="Select page">
+    </mat-paginator>
+
+    <!-- Empty state -->
+    <app-empty-state 
+      *ngIf="!loading && !error && books.length === 0"
+      [isAuthor]="isAuthor"
+    ></app-empty-state>
+  </main>
 </div> 
