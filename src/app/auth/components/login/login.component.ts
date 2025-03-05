@@ -3,7 +3,7 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } 
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../services/auth.service';
-import { Router, RouterModule } from '@angular/router';
+import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -38,11 +38,13 @@ export class LoginComponent implements OnInit {
   loading = false;
   hidePassword = true;
   errorMessage = '';
+  returnUrl: string = '/';
 
   constructor(
     private fb: FormBuilder,
     private authService: AuthService,
     private router: Router,
+    private route: ActivatedRoute,
     private snackBar: MatSnackBar
   ) {
     console.log('Login Component Constructor');
@@ -56,6 +58,7 @@ export class LoginComponent implements OnInit {
   ngOnInit(): void {
     console.log('Login Component Initialized');
     console.log('Current Route:', this.router.url);
+    this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/';
   }
 
   onSubmit(): void {
@@ -67,7 +70,7 @@ export class LoginComponent implements OnInit {
       
       this.authService.login(credentials).subscribe({
         next: () => {
-          this.router.navigate(['/dashboard']);
+          this.router.navigateByUrl(this.returnUrl);
         },
         error: (error: string) => {
           this.loading = false;

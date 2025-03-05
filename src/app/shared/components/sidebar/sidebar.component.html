@@ -8,17 +8,15 @@
       <mat-icon>home</mat-icon>
       <span *ngIf="isExpanded$ | async">Home</span>
     </a>
-    <a routerLink="/books" class="menu-item" routerLinkActive="active">
-      <mat-icon>library_books</mat-icon>
-      <span *ngIf="isExpanded$ | async">My Books</span>
-    </a>
-    <a routerLink="/books/recent" class="menu-item" routerLinkActive="active">
-      <mat-icon>history</mat-icon>
-      <span *ngIf="isExpanded$ | async">Recent</span>
-    </a>
-    <a routerLink="/books/bookmarks" class="menu-item" routerLinkActive="active">
-      <mat-icon>bookmark</mat-icon>
-      <span *ngIf="isExpanded$ | async">Bookmarks</span>
-    </a>
+    <ng-container *ngIf="isAuthenticated$ | async">
+      <a routerLink="/books" class="menu-item" routerLinkActive="active">
+        <mat-icon>library_books</mat-icon>
+        <span *ngIf="isExpanded$ | async">My Books</span>
+      </a>
+      <a routerLink="/books/bookmarks" class="menu-item" routerLinkActive="active">
+        <mat-icon>bookmark</mat-icon>
+        <span *ngIf="isExpanded$ | async">Bookmarks</span>
+      </a>
+    </ng-container>
   </div>
 </aside> 

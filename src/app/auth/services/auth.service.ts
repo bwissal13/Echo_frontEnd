@@ -30,6 +30,7 @@ export class AuthService {
   private readonly TOKEN_EXPIRY_KEY = 'tokenExpiry';
   private readonly USER_KEY = 'user';
   private readonly REMEMBER_ME_KEY = 'rememberMe';
+  private readonly USER_ROLES_KEY = 'user_roles';
   
   private authState = new BehaviorSubject<AuthState>({
     isAuthenticated: false,
@@ -44,6 +45,8 @@ export class AuthService {
       'Accept': 'application/json'
     })
   };
+
+  private isAuthenticatedSubject = new BehaviorSubject<boolean>(this.hasValidToken());
 
   constructor(
     private http: HttpClient,
@@ -174,6 +177,12 @@ export class AuthService {
     return this.http.post<AuthResponse>(`${this.API_URL}/login`, credentials).pipe(
       tap((response: AuthResponse) => {
         this.handleAuthSuccess(response, credentials.rememberMe);
+        this.authState.next({
+          isAuthenticated: true,
+          user: response.user,
+          loading: false,
+          error: null
+        });
       }),
       catchError(this.handleError.bind(this)),
       tap(() => this.setLoading(false))
@@ -206,6 +215,7 @@ export class AuthService {
     localStorage.removeItem(this.TOKEN_EXPIRY_KEY);
     localStorage.removeItem(this.REMEMBER_ME_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+    localStorage.removeItem(this.USER_ROLES_KEY);
 
     this.authState.next({
       isAuthenticated: false,
@@ -215,6 +225,7 @@ export class AuthService {
     });
 
     this.router.navigate(['/auth/login']);
+    this.isAuthenticatedSubject.next(false);
   }
 
   forgotPassword(email: string): Observable<OtpResponse> {
@@ -320,24 +331,9 @@ export class AuthService {
   }
 
   hasRole(role: string): boolean {
-    const token = localStorage.getItem(this.TOKEN_KEY);
-    if (!token) return false;
-    
-    try {
-      const base64Url = token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const decodedToken = JSON.parse(window.atob(base64));
-      
-      // Vérifier si le token contient les rôles
-      if (decodedToken && decodedToken.roles) {
-        console.log('User roles:', decodedToken.roles);
-        return decodedToken.roles.includes(role);
-      }
-      return false;
-    } catch (e) {
-      console.error('Error decoding token:', e);
-      return false;
-    }
+    const roles = localStorage.getItem(this.USER_ROLES_KEY);
+    if (!roles) return false;
+    return JSON.parse(roles).includes(role);
   }
 
   requestAuthorRole(reason: string): Observable<RoleChangeResponse> {
@@ -413,5 +409,18 @@ export class AuthService {
         return throwError(() => error);
       })
     );
+  }
+
+  isAuthenticated(): boolean {
+    return this.hasValidToken();
+  }
+
+  private hasValidToken(): boolean {
+    const token = localStorage.getItem(this.TOKEN_KEY);
+    return !!token; // Returns true if token exists, false otherwise
+  }
+
+  getToken(): string | null {
+    return localStorage.getItem(this.TOKEN_KEY);
   }
 }

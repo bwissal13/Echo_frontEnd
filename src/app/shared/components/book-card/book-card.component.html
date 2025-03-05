@@ -4,8 +4,8 @@
     <h3>{{book.title}}</h3>
     <p>{{formatGenre(book.genre)}}</p>
     <div class="book-actions">
-      <button mat-icon-button (click)="$event.stopPropagation()">
-        <mat-icon>bookmark_border</mat-icon>
+      <button mat-icon-button (click)="openBookmarkDialog($event)">
+        <mat-icon>{{isBookmarked() ? 'bookmark' : 'bookmark_border'}}</mat-icon>
       </button>
     </div>
   </div>
