@@ -17,6 +17,12 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { AuthService } from '../../../auth/services/auth.service';
 import { BecomeAuthorDialogComponent } from '../become-author-dialog/become-author-dialog.component';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { ChapterEditorComponent } from '../chapter-editor/chapter-editor.component';
+import { ChapterService } from '../../services/chapter.service';
+import { DeleteConfirmationDialog } from '../../../shared/components/delete-confirmation-dialog/delete-confirmation-dialog.component';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { catchError, tap, throwError } from 'rxjs';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 
 @Component({
   selector: 'app-book-editor',
@@ -31,7 +37,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
     MatDividerModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
-    ChapterListComponent
+    MatTooltipModule
   ],
   templateUrl: './book-editor.component.html',
   styleUrls: ['./book-editor.component.scss']
@@ -59,6 +65,11 @@ export class BookEditorComponent implements OnInit, OnDestroy {
   authorName: string = '';
   private readonly DEFAULT_COVER = 'assets/images/default-book-cover.jpg';
   isUploading = false;
+  isLoading = false;
+  trashedChaptersCount = 0;
+  showTrashAside = false;
+  trashedBooks: any[] = [];
+  trashedBooksCount = 0;
 
   constructor(
     private router: Router,
@@ -66,7 +77,8 @@ export class BookEditorComponent implements OnInit, OnDestroy {
     private bookService: BookService,
     private authService: AuthService,
     private dialog: MatDialog,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private chapterService: ChapterService
   ) {}
 
   ngOnInit(): void {
@@ -96,6 +108,8 @@ export class BookEditorComponent implements OnInit, OnDestroy {
     if (!this.coverImageUrl) {
       this.coverImageUrl = `url('${this.DEFAULT_COVER}')`;
     }
+
+    this.loadChapters();
   }
 
   getImageUrl(coverImage: string | null): string {
@@ -312,9 +326,46 @@ export class BookEditorComponent implements OnInit, OnDestroy {
   }
 
   addSubpage(): void {
-    // Open in new tab/window
-    const newPageUrl = `/books/new?parentId=${this.bookId}`;
-    window.open(newPageUrl, '_blank');
+    if (!this.bookId) {
+      this.showSnackBar('Please save the book first before adding chapters', 'error');
+      return;
+    }
+
+    const newChapter: Partial<Chapter> = {
+      title: '',
+      content: '',
+      order: this.chapters.length + 1,
+      bookId: this.bookId
+    };
+
+    const dialogRef = this.dialog.open(ChapterEditorComponent, {
+      width: '100%',
+      height: '100%',
+      maxWidth: '100vw',
+      maxHeight: '100vh',
+      panelClass: 'fullscreen-dialog',
+      data: { chapter: newChapter, isEditing: false }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.chapterService.createChapter(result).subscribe({
+          next: (createdChapter) => {
+            this.chapters.push(createdChapter);
+            this.saveBook(); // Save the book to update chapters
+            this.showSnackBar('Chapter created successfully', 'success');
+          },
+          error: (error) => {
+            console.error('Error creating chapter:', error);
+            if (error.status === 403) {
+              this.handleAuthError();
+            } else {
+              this.showSnackBar('Failed to create chapter: ' + (error.error?.message || 'Unknown error'), 'error');
+            }
+          }
+        });
+      }
+    });
   }
 
   addInlinePage(): void {
@@ -345,28 +396,27 @@ export class BookEditorComponent implements OnInit, OnDestroy {
   }
 
   editChapter(chapter: Chapter): void {
-    const dialogRef = this.dialog.open(ChapterDialogComponent, {
-      width: '800px',
-      data: { ...chapter }
+    const dialogRef = this.dialog.open(ChapterEditorComponent, {
+      width: '100%',
+      height: '100%',
+      maxWidth: '100vw',
+      maxHeight: '100vh',
+      panelClass: 'fullscreen-dialog',
+      data: { chapter: { ...chapter }, isEditing: true }
     });
 
     dialogRef.afterClosed().subscribe(result => {
-      if (result && this.bookId) {
-        const updatedChapter: UpdateChapterRequest = {
-          title: result.title,
-          content: result.content,
-          order: chapter.order
-        };
-
-        this.bookService.updateChapter(this.bookId, chapter.id, updatedChapter).subscribe({
-          next: (updated: Chapter) => {
+      if (result) {
+        this.chapterService.updateChapter(chapter.id, result).subscribe({
+          next: (updatedChapter) => {
             const index = this.chapters.findIndex(c => c.id === chapter.id);
             if (index !== -1) {
-              this.chapters[index] = updated;
+              this.chapters[index] = updatedChapter;
+              this.updateBookDetails();
             }
             this.showSnackBar('Chapter updated successfully', 'success');
           },
-          error: (error: any) => {
+          error: (error) => {
             console.error('Error updating chapter:', error);
             this.showSnackBar('Failed to update chapter', 'error');
           }
@@ -376,20 +426,96 @@ export class BookEditorComponent implements OnInit, OnDestroy {
   }
 
   deleteChapter(chapter: Chapter): void {
-    if (confirm('Are you sure you want to delete this chapter?') && this.bookId) {
-      this.bookService.deleteChapter(this.bookId, chapter.id).subscribe({
-        next: () => {
-          this.chapters = this.chapters.filter(c => c.id !== chapter.id);
+    const dialogRef = this.dialog.open(DeleteConfirmationDialog, {
+      width: '400px',
+      data: {
+        title: 'Delete Chapter',
+        message: 'Do you want to move this chapter to trash or delete it permanently?',
+        options: ['Move to Trash', 'Delete Permanently', 'Cancel']
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result === 'Move to Trash') {
+        this.moveChapterToTrash(chapter);
+      } else if (result === 'Delete Permanently') {
+        this.permanentDeleteChapter(chapter);
+      }
+    });
+  }
+
+  public moveChapterToTrash(chapter: Chapter): void {
+    this.chapterService.moveToTrash(chapter.id).subscribe({
+      next: () => {
+        const index = this.chapters.findIndex(c => c.id === chapter.id);
+        if (index !== -1) {
+          this.chapters.splice(index, 1);
+          this.reorderChapters();
+          this.saveBook();
         }
-      });
-    }
+        this.trashedChaptersCount++;
+        this.showSnackBar('Chapter moved to trash', 'success');
+      },
+      error: (error) => {
+        console.error('Error moving chapter to trash:', error);
+        if (error.status === 403) {
+          this.handleAuthError();
+        } else {
+          this.showSnackBar('Failed to move chapter to trash', 'error');
+        }
+      }
+    });
+  }
+
+  public permanentDeleteChapter(chapter: Chapter): void {
+    const confirmRef = this.dialog.open(DeleteConfirmationDialog, {
+      width: '400px',
+      data: {
+        title: 'Permanent Delete',
+        message: 'This action cannot be undone. Are you sure you want to permanently delete this chapter?',
+        confirmText: 'Delete',
+        isPermanent: true
+      }
+    });
+
+    confirmRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.chapterService.permanentDelete(chapter.id).subscribe({
+          next: () => {
+            const index = this.chapters.findIndex(c => c.id === chapter.id);
+            if (index !== -1) {
+              this.chapters.splice(index, 1);
+              this.reorderChapters();
+              this.saveBook();
+            }
+            this.showSnackBar('Chapter permanently deleted', 'success');
+          },
+          error: (error) => {
+            console.error('Error deleting chapter:', error);
+            if (error.status === 403) {
+              this.handleAuthError();
+            } else {
+              this.showSnackBar('Failed to delete chapter', 'error');
+            }
+          }
+        });
+      }
+    });
+  }
+
+  private reorderChapters(): void {
+    this.chapters = this.chapters.map((ch, idx) => ({
+      ...ch,
+      order: idx + 1
+    }));
   }
 
   onChaptersReordered(chapters: Chapter[]): void {
-    if (this.bookId) {
-      const chapterIds = chapters.map(c => c.id);
-      this.bookService.reorderChapters(this.bookId, chapterIds).subscribe();
-    }
+    this.chapters = chapters.map((chapter, index) => ({
+      ...chapter,
+      order: index + 1
+    }));
+    this.updateBookDetails();
   }
 
   onTitleChange(): void {
@@ -496,10 +622,119 @@ export class BookEditorComponent implements OnInit, OnDestroy {
   }
 
   private handleAuthError(): void {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    this.showSnackBar('Your session has expired. Please log in again.', 'error');
-    localStorage.setItem('redirectUrl', this.router.url);
-    this.router.navigate(['/login']);
+    this.showSnackBar('Please log in to continue', 'error');
+    this.router.navigate(['/auth/login']);
+  }
+
+  loadChapters(): void {
+    if (this.bookId) {
+      this.isLoading = true;
+      this.chapterService.getChaptersByBook(this.bookId).subscribe({
+        next: (response) => {
+          this.chapters = response.content || [];
+          this.isLoading = false;
+        },
+        error: (error) => {
+          console.error('Error loading chapters:', error);
+          this.isLoading = false;
+          if (error.status === 403) {
+            this.handleAuthError();
+          } else {
+            this.showSnackBar('Failed to load chapters', 'error');
+          }
+        }
+      });
+    }
+  }
+
+  openTrash(): void {
+    this.showTrashAside = true;
+    this.loadTrashedBooks();
+  }
+
+  private loadTrashedBooks(): void {
+    this.bookService.getTrashBooks().subscribe({
+      next: (response: any) => {
+        this.trashedBooks = response.books;
+        this.trashedBooksCount = this.trashedBooks.length;
+      },
+      error: (error: any) => {
+        console.error('Error loading trashed books:', error);
+        this.showSnackBar('Failed to load trashed books', 'error');
+      }
+    });
+  }
+
+  closeTrashAside(): void {
+    this.showTrashAside = false;
+  }
+
+  async restoreBook(book: any): Promise<void> {
+    try {
+      await this.bookService.restoreFromTrash(book.id).toPromise();
+      await this.loadTrashedBooks();
+      this.showSnackBar('Book restored successfully', 'success');
+    } catch (error) {
+      this.showSnackBar('Failed to restore book', 'error');
+    }
+  }
+
+  async permanentDeleteBook(book: any): Promise<void> {
+    const dialogData: ConfirmDialogData = {
+      title: 'Delete Permanently',
+      message: 'This action cannot be undone. Are you sure you want to permanently delete this book?',
+      confirmText: 'Delete Permanently',
+      confirmColor: 'warn'
+    };
+
+    const confirm = await this.dialog.open(ConfirmDialogComponent, {
+      data: dialogData,
+      width: '400px'
+    }).afterClosed().toPromise();
+
+    if (confirm) {
+      try {
+        await this.bookService.permanentDelete(book.id).toPromise();
+        await this.loadTrashedBooks();
+        this.showSnackBar('Book deleted permanently', 'success');
+      } catch (error) {
+        this.showSnackBar('Failed to delete book', 'error');
+      }
+    }
+  }
+
+  async deleteBook(): Promise<void> {
+    if (!this.bookId) return;
+
+    const dialogData: ConfirmDialogData = {
+      title: 'Move to Trash',
+      message: 'Are you sure you want to move this book to trash? You can restore it later from the trash.',
+      confirmText: 'Move to Trash',
+      confirmColor: 'warn'
+    };
+
+    const confirm = await this.dialog.open(ConfirmDialogComponent, {
+      data: dialogData,
+      width: '400px'
+    }).afterClosed().toPromise();
+
+    if (confirm) {
+      try {
+        await this.bookService.moveToTrash(this.bookId).pipe(
+          tap(() => {
+            this.showSnackBar('Book moved to trash', 'success');
+            this.router.navigate(['/books']);
+          }),
+          catchError(error => {
+            console.error('Error moving book to trash:', error);
+            this.showSnackBar('Failed to move book to trash', 'error');
+            return throwError(() => error);
+          })
+        ).toPromise();
+      } catch (error) {
+        console.error('Error moving book to trash:', error);
+        this.showSnackBar('Failed to move book to trash', 'error');
+      }
+    }
   }
 } 

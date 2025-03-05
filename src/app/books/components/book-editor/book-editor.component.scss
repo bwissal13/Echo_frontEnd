@@ -317,56 +317,140 @@
 }
 
 .chapters-section {
-  margin-top: 48px;
-  border-top: 1px solid #E5E7EB;
-  padding-top: 24px;
+  margin-top: 32px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 
   .section-header {
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 8px;
-    color: #6B7280;
-    margin-bottom: 16px;
+    padding: 16px 24px;
+    border-bottom: 1px solid #eee;
 
-    mat-icon {
-      font-size: 18px;
-      width: 18px;
-      height: 18px;
-    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
 
-    .chapter-count {
-      background: #F3F4F6;
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-size: 12px;
+      mat-icon {
+        color: #666;
+      }
+
+      span {
+        font-size: 16px;
+        font-weight: 500;
+      }
+
+      .chapter-count {
+        background: #f3f4f6;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        color: #666;
+      }
     }
   }
 
-  .add-chapter-prompt {
-    display: flex;
-    gap: 12px;
-    padding: 12px;
-    margin-top: 8px;
-    border-radius: 4px;
-
-    button {
+  .chapters-list {
+    .chapter-item {
       display: flex;
       align-items: center;
-      gap: 8px;
-      color: rgb(55, 53, 47);
-      font-size: 14px;
-      padding: 6px 12px;
-      border-radius: 4px;
-      background: transparent;
-      
+      justify-content: space-between;
+      padding: 16px 24px;
+      border-bottom: 1px solid #eee;
+      transition: background-color 0.2s;
+
       &:hover {
-        background: rgba(55, 53, 47, 0.08);
+        background-color: #f9fafb;
       }
 
+      .chapter-info {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        flex: 1;
+        cursor: pointer;
+
+        .chapter-number {
+          width: 28px;
+          height: 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #f3f4f6;
+          border-radius: 50%;
+          font-size: 14px;
+          color: #666;
+        }
+
+        .chapter-details {
+          h4 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 500;
+            color: #111;
+          }
+
+          p {
+            margin: 4px 0 0;
+            font-size: 14px;
+            color: #666;
+            line-height: 1.4;
+          }
+        }
+      }
+
+      .chapter-actions {
+        display: flex;
+        gap: 8px;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+
+        &:hover {
+          opacity: 1;
+        }
+      }
+    }
+  }
+
+  .empty-chapters {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    text-align: center;
+
+    mat-icon {
+      font-size: 48px;
+      height: 48px;
+      width: 48px;
+      color: #9ca3af;
+      margin-bottom: 16px;
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 500;
+      color: #374151;
+    }
+
+    p {
+      margin: 8px 0 24px;
+      color: #6b7280;
+    }
+
+    button {
       mat-icon {
         font-size: 20px;
-        width: 20px;
         height: 20px;
+        width: 20px;
+        margin-right: 8px;
+        margin-bottom: 0;
+        color: inherit;
       }
     }
   }
@@ -578,5 +662,164 @@
 
   &::placeholder {
     color: rgba(55, 53, 47, 0.4);
+  }
+}
+
+.chapter-item {
+  .chapter-actions {
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+  }
+
+  &:hover {
+    .chapter-actions {
+      opacity: 1;
+    }
+  }
+}
+
+.delete-permanently {
+  color: #d32f2f !important;
+  
+  .mat-icon {
+    color: #d32f2f !important;
+  }
+}
+
+.chapter-menu {
+  .mat-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    
+    .mat-icon {
+      margin-right: 8px;
+    }
+  }
+}
+
+.chapter-item.deleting {
+  animation: fadeOut 0.3s ease-out forwards;
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+}
+
+// Add these styles
+.trash-count {
+  margin-left: 8px;
+  color: #666;
+  font-size: 14px;
+}
+
+.chapter-menu {
+  .delete-permanently {
+    color: #d32f2f;
+    
+    .mat-icon {
+      color: #d32f2f;
+    }
+  }
+}
+
+.trash-aside {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 320px;
+  background: #fff;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+  z-index: 1000;
+
+  .trash-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      .trash-count {
+        color: #666;
+        font-size: 14px;
+      }
+    }
+  }
+
+  .trashed-books-list {
+    .trashed-book-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      border: 1px solid #eee;
+
+      &:hover {
+        background: #f5f5f5;
+      }
+
+      .book-info {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+
+        .book-thumbnail {
+          width: 48px;
+          height: 48px;
+          background-size: cover;
+          background-position: center;
+          border-radius: 4px;
+        }
+
+        .book-details {
+          h4 {
+            margin: 0;
+            font-size: 14px;
+          }
+
+          .deleted-date {
+            margin: 0;
+            font-size: 12px;
+            color: #666;
+          }
+        }
+      }
+
+      .book-actions {
+        display: flex;
+        gap: 4px;
+      }
+    }
+  }
+
+  .empty-trash {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: #666;
+    
+    mat-icon {
+      font-size: 48px;
+      height: 48px;
+      width: 48px;
+      margin-bottom: 16px;
+    }
   }
 } 

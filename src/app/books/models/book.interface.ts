@@ -52,10 +52,12 @@ export interface BookPage {
 
 export interface Chapter {
   id: number;
+  bookId: number;
   title: string;
   content: string;
   order: number;
-  bookId: number;
+  updatedAt?: Date;
+  deletedAt?: Date;
 }
 
 export interface CreateChapterRequest {

@@ -170,4 +170,38 @@ export class BookService {
   reorderChapters(bookId: number, chapterIds: number[]): Observable<void> {
     return this.http.post<void>(`${this.API_URL}/${bookId}/chapters/reorder`, { chapterIds });
   }
+
+  moveToTrash(bookId: number): Observable<void> {
+    return this.http.post<void>(`${this.API_URL}/${bookId}/trash`, {}, {
+      headers: this.getHeaders()
+    }).pipe(
+      catchError(error => {
+        console.error('Error moving book to trash:', error);
+        return throwError(() => new Error('Failed to move book to trash'));
+      })
+    );
+  }
+
+  getTrashBooks(page = 0, size = 10): Observable<any> {
+    const params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString());
+    
+    return this.http.get<any>(`${this.API_URL}/trash`, { 
+      params,
+      headers: this.getHeaders()
+    });
+  }
+
+  restoreFromTrash(bookId: number): Observable<void> {
+    return this.http.post<void>(`${this.API_URL}/trash/${bookId}/restore`, {}, {
+      headers: this.getHeaders()
+    });
+  }
+
+  permanentDelete(bookId: number): Observable<void> {
+    return this.http.delete<void>(`${this.API_URL}/trash/${bookId}`, {
+      headers: this.getHeaders()
+    });
+  }
 } 

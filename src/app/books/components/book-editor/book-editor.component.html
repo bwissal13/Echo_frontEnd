@@ -94,31 +94,102 @@
 
     <!-- Chapters Section -->
     <div class="chapters-section">
-      <div class="section-header" *ngIf="chapters.length > 0">
-        <mat-icon>menu_book</mat-icon>
-        <span>Chapters</span>
-        <span class="chapter-count">{{ chapters.length }}</span>
+      <div class="section-header">
+        <div class="header-left">
+          <mat-icon>menu_book</mat-icon>
+          <span>Chapters</span>
+          <span class="chapter-count" *ngIf="chapters.length > 0">{{ chapters.length }}</span>
+        </div>
+        <div class="header-actions">
+          <button mat-button (click)="addSubpage()">
+            <mat-icon>add_box</mat-icon>
+            Add Chapter
+          </button>
+        </div>
       </div>
       
-      <app-chapter-list
-        *ngIf="chapters.length > 0"
-        [chapters]="chapters"
-        (editChapter)="editChapter($event)"
-        (deleteChapter)="deleteChapter($event)"
-        (chaptersReordered)="onChaptersReordered($event)">
-      </app-chapter-list>
+      <!-- Chapters List -->
+      <div class="chapters-list" *ngIf="chapters.length > 0">
+        <div class="chapter-item" *ngFor="let chapter of chapters; let i = index">
+          <div class="chapter-info" (click)="editChapter(chapter)">
+            <div class="chapter-number">{{ i + 1 }}</div>
+            <div class="chapter-details">
+              <h4>{{ chapter.title || 'Untitled Chapter' }}</h4>
+              <p>{{ chapter.content | slice:0:100 }}{{ chapter.content.length > 100 ? '...' : '' }}</p>
+            </div>
+          </div>
+          <div class="chapter-actions">
+            <button mat-icon-button (click)="editChapter(chapter)" matTooltip="Edit chapter">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button mat-icon-button [matMenuTriggerFor]="chapterMenu" matTooltip="More options">
+              <mat-icon>more_vert</mat-icon>
+            </button>
+            <mat-menu #chapterMenu="matMenu" class="chapter-menu">
+              <button mat-menu-item (click)="moveChapterToTrash(chapter)">
+                <mat-icon>delete_outline</mat-icon>
+                <span>Move to Trash</span>
+              </button>
+              <mat-divider></mat-divider>
+              <button mat-menu-item (click)="permanentDeleteChapter(chapter)" class="delete-permanently">
+                <mat-icon>delete_forever</mat-icon>
+                <span>Delete Permanently</span>
+              </button>
+            </mat-menu>
+          </div>
+        </div>
+      </div>
 
-      <div class="add-chapter-prompt" *ngIf="chapters.length === 0">
-        <button mat-button (click)="addSubpage()">
-          <mat-icon>add_box</mat-icon>
-          Add a subpage
-        </button>
-        <button mat-button (click)="addInlinePage()">
-          <mat-icon>post_add</mat-icon>
-          Add inline
+      <!-- Empty State -->
+      <div class="empty-chapters" *ngIf="chapters.length === 0">
+        <mat-icon>auto_stories</mat-icon>
+        <h3>No Chapters Yet</h3>
+        <p>Start adding chapters to your book</p>
+        <button mat-flat-button color="primary" (click)="addSubpage()">
+          <mat-icon>add</mat-icon>
+          Add First Chapter
         </button>
       </div>
     </div>
+
+    <!-- Trash Aside -->
+    <aside class="trash-aside" *ngIf="showTrashAside">
+      <div class="trash-header">
+        <div class="header-left">
+          <mat-icon>delete_outline</mat-icon>
+          <span>Trash</span>
+          <span class="trash-count" *ngIf="trashedBooksCount > 0">({{ trashedBooksCount }})</span>
+        </div>
+        <button mat-icon-button (click)="closeTrashAside()" matTooltip="Close trash">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <div class="trashed-books-list" *ngIf="trashedBooks.length > 0">
+        <div class="trashed-book-item" *ngFor="let book of trashedBooks">
+          <div class="book-info">
+            <div class="book-thumbnail" [style.backgroundImage]="'url(' + book.coverUrl + ')'"></div>
+            <div class="book-details">
+              <h4>{{ book.title || 'Untitled Book' }}</h4>
+              <p class="deleted-date">Deleted {{ book.deletedAt | date }}</p>
+            </div>
+          </div>
+          <div class="book-actions">
+            <button mat-icon-button (click)="restoreBook(book)" matTooltip="Restore book">
+              <mat-icon>restore</mat-icon>
+            </button>
+            <button mat-icon-button (click)="permanentDeleteBook(book)" matTooltip="Delete permanently">
+              <mat-icon>delete_forever</mat-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="empty-trash" *ngIf="trashedBooks.length === 0">
+        <mat-icon>delete_outline</mat-icon>
+        <p>No books in trash</p>
+      </div>
+    </aside>
   </div>
 </div>
 
@@ -145,5 +216,15 @@
   <button mat-menu-item (click)="fileInput.click()">
     <mat-icon>image</mat-icon>
     Change cover
+  </button>
+  <mat-divider></mat-divider>
+  <button mat-menu-item (click)="deleteBook()" [disabled]="!bookId">
+    <mat-icon>delete_outline</mat-icon>
+    <span>Move to Trash</span>
+  </button>
+  <button mat-menu-item (click)="openTrash()">
+    <mat-icon>delete_outline</mat-icon>
+    <span>Trash</span>
+    <span class="trash-count" *ngIf="trashedChaptersCount > 0">({{ trashedChaptersCount }})</span>
   </button>
 </mat-menu> 
