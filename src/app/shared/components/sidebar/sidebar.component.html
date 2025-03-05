@@ -17,6 +17,17 @@
         <mat-icon>bookmark</mat-icon>
         <span *ngIf="isExpanded$ | async">Bookmarks</span>
       </a>
+      <a routerLink="/books/new" class="menu-item create-book" routerLinkActive="active">
+        <mat-icon>add_circle</mat-icon>
+        <span *ngIf="isExpanded$ | async">Create New Book</span>
+      </a>
     </ng-container>
+  </div>
+
+  <div class="footer-actions" *ngIf="isAuthenticated$ | async">
+    <button class="menu-item logout-btn" (click)="logout()">
+      <mat-icon>exit_to_app</mat-icon>
+      <span *ngIf="isExpanded$ | async">Logout</span>
+    </button>
   </div>
 </aside> 

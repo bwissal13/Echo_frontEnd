@@ -38,4 +38,9 @@ export class SidebarComponent implements OnInit {
   toggleSidebar() {
     this.isExpandedSubject.next(!this.isExpandedSubject.value);
   }
+
+  logout() {
+    this.authService.logout();
+    this.router.navigate(['/auth/login']);
+  }
 } 
