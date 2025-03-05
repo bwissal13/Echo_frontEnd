@@ -1,9 +1,18 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams, HttpHeaders } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
-import { tap, catchError } from 'rxjs/operators';
+import { tap, catchError, retry, delay } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
-import { Book, CreateBookRequest, UpdateBookRequest, BookPage, Chapter, CreateChapterRequest, UpdateChapterRequest } from '../models/book.interface';
+import { 
+  Book, 
+  CreateBookRequest, 
+  UpdateBookRequest, 
+  BookPage, 
+  Chapter, 
+  CreateChapterRequest, 
+  UpdateChapterRequest,
+  PageResponse 
+} from '../models/book.interface';
 
 @Injectable({
   providedIn: 'root'
@@ -40,7 +49,17 @@ export class BookService {
   }
 
   getBook(id: number): Observable<Book> {
-    return this.http.get<Book>(`${this.API_URL}/${id}`, { headers: this.getHeaders() });
+    return this.http.get<Book>(`${this.API_URL}/${id}`, { headers: this.getHeaders() })
+      .pipe(
+        retry({
+          count: 3,
+          delay: 1000
+        }),
+        catchError(error => {
+          console.error('Error fetching book:', error);
+          return throwError(() => error);
+        })
+      );
   }
 
   getMyBooks(page: number = 0, size: number = 12): Observable<BookPage> {
@@ -147,8 +166,20 @@ export class BookService {
     return this.http.post<{url: string}>(`${environment.apiUrl}/api/v1/files/upload`, formData);
   }
 
-  getChapters(bookId: number): Observable<Chapter[]> {
-    return this.http.get<Chapter[]>(`${this.API_URL}/${bookId}/chapters`);
+  getChapters(bookId: number, page = 0, size = 10): Observable<PageResponse<Chapter>> {
+    return this.http.get<PageResponse<Chapter>>(
+      `${this.API_URL}/chapters/book/${bookId}?page=${page}&size=${size}`,
+      { headers: this.getHeaders() }
+    ).pipe(
+      retry({
+        count: 3,
+        delay: 1000
+      }),
+      catchError(error => {
+        console.error('Error fetching chapters:', error);
+        return throwError(() => error);
+      })
+    );
   }
 
   getChapter(bookId: number, chapterId: number): Observable<Chapter> {

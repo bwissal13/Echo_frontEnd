@@ -23,6 +23,7 @@ import { DeleteConfirmationDialog } from '../../../shared/components/delete-conf
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { catchError, tap, throwError } from 'rxjs';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
+import { map, filter, mergeMap, finalize } from 'rxjs/operators';
 
 @Component({
   selector: 'app-book-editor',
@@ -70,6 +71,12 @@ export class BookEditorComponent implements OnInit, OnDestroy {
   showTrashAside = false;
   trashedBooks: any[] = [];
   trashedBooksCount = 0;
+  loading = true;
+  book: Book | null = null;
+  originalBook: Book | null = null;
+  pageIndex = 0;
+  pageSize = 10;
+  totalChapters = 0;
 
   constructor(
     private router: Router,
@@ -122,8 +129,17 @@ export class BookEditorComponent implements OnInit, OnDestroy {
   }
 
   loadBook(id: number): void {
-    this.bookService.getBook(id).subscribe({
+    this.loading = true;
+    this.route.paramMap.pipe(
+      map(params => params.get('id')),
+      filter(id => !!id),
+      map(id => parseInt(id!, 10)),
+      mergeMap(id => this.bookService.getBook(id)),
+      finalize(() => this.loading = false)
+    ).subscribe({
       next: (book) => {
+        this.book = book;
+        this.originalBook = { ...book };
         this.bookTitle = book.title;
         this.bookContent = book.description;
         this.coverImage = book.coverImage;
@@ -134,7 +150,17 @@ export class BookEditorComponent implements OnInit, OnDestroy {
       },
       error: (error) => {
         console.error('Error loading book:', error);
-        this.showSnackBar('Failed to load book', 'error');
+        const message = error.status === 429 
+          ? 'Too many requests. Please wait a moment and try again.'
+          : 'Failed to load book details';
+        this.snackBar.open(message, 'Close', {
+          duration: 5000,
+          horizontalPosition: 'center',
+          verticalPosition: 'bottom'
+        });
+        if (error.status === 401) {
+          this.handleAuthError();
+        }
       }
     });
   }
@@ -627,24 +653,23 @@ export class BookEditorComponent implements OnInit, OnDestroy {
   }
 
   loadChapters(): void {
-    if (this.bookId) {
-      this.isLoading = true;
-      this.chapterService.getChaptersByBook(this.bookId).subscribe({
-        next: (response) => {
-          this.chapters = response.content || [];
-          this.isLoading = false;
-        },
-        error: (error) => {
-          console.error('Error loading chapters:', error);
-          this.isLoading = false;
-          if (error.status === 403) {
-            this.handleAuthError();
-          } else {
-            this.showSnackBar('Failed to load chapters', 'error');
-          }
-        }
-      });
-    }
+    if (!this.book?.id) return;
+    
+    this.bookService.getChapters(this.book.id, this.pageIndex, this.pageSize).subscribe({
+      next: (response) => {
+        this.chapters = response.content;
+        this.totalChapters = response.totalElements;
+      },
+      error: (error) => {
+        console.error('Error loading chapters:', error);
+        const message = error.status === 429 
+          ? 'Too many requests. Please wait a moment and try again.'
+          : 'Failed to load chapters';
+        this.snackBar.open(message, 'Close', {
+          duration: 5000
+        });
+      }
+    });
   }
 
   openTrash(): void {
