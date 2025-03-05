@@ -1,0 +1,21 @@
+<div class="search-wrapper">
+  <div class="search-container">
+    <div class="search-icon-wrapper">
+      <mat-icon>search</mat-icon>
+    </div>
+    <input 
+      type="text" 
+      placeholder="Search for books..."
+      (input)="onSearch($event)"
+      class="search-input"
+    >
+    <button 
+      *ngIf="searchValue" 
+      class="clear-button" 
+      mat-icon-button 
+      (click)="clearSearch()"
+    >
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+</div> 
