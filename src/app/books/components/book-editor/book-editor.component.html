@@ -22,6 +22,10 @@
       <button mat-button [matMenuTriggerFor]="moreMenu">
         <mat-icon>more_horiz</mat-icon>
       </button>
+      <div class="visibility-status" [class.public]="isPublic">
+        <mat-icon>{{ isPublic ? 'visibility' : 'visibility_off' }}</mat-icon>
+        <span>{{ isPublic ? 'Public' : 'Private' }}</span>
+      </div>
     </div>
   </div>
 
@@ -209,8 +213,8 @@
     {{ bookId ? 'Save changes' : 'Save as draft' }}
   </button>
   <button mat-menu-item (click)="publish()">
-    <mat-icon>publish</mat-icon>
-    Publish
+    <mat-icon>{{ isPublic ? 'visibility_off' : 'visibility' }}</mat-icon>
+    {{ isPublic ? 'Make Private' : 'Make Public' }}
   </button>
   <mat-divider></mat-divider>
   <button mat-menu-item (click)="fileInput.click()">
