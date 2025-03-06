@@ -140,7 +140,14 @@ import { AuthService } from '../../../auth/services/auth.service';
     </div>
   `,
   styles: [`
+    .app-container {
+      display: flex;
+      min-height: 100vh;
+      background-color: #f8f9fa;
+    }
+
     .main-content {
+      flex: 1;
       padding: 32px;
       max-width: 800px;
       margin: 0 auto;
@@ -157,11 +164,35 @@ import { AuthService } from '../../../auth/services/auth.service';
 
     .chapter-header {
       margin-bottom: 32px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 24px;
       
       .navigation {
         display: flex;
         justify-content: space-between;
         margin-bottom: 24px;
+        gap: 12px;
+
+        button {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 16px;
+          border-radius: 8px;
+          background-color: #f8f9fa;
+          color: #333;
+          transition: all 0.2s;
+
+          &:hover {
+            background-color: #e9ecef;
+          }
+
+          mat-icon {
+            font-size: 20px;
+            width: 20px;
+            height: 20px;
+          }
+        }
       }
 
       h1 {
@@ -170,39 +201,62 @@ import { AuthService } from '../../../auth/services/auth.service';
         color: #1a1a1a;
         margin-bottom: 16px;
         text-align: center;
-      }
-
-      .chapter-actions {
-        display: flex;
-        justify-content: center;
-        gap: 16px;
-
-        button {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 4px;
-
-          &.active {
-            color: #2563eb;
-          }
-
-          span {
-            font-size: 14px;
-          }
-        }
+        line-height: 1.3;
       }
     }
 
     .chapter-content {
+      font-family: 'Georgia', serif;
       font-size: 18px;
       line-height: 1.8;
       color: #333;
       margin-bottom: 48px;
+      
+      p {
+        margin-bottom: 1.5em;
+      }
+
+      h2, h3, h4 {
+        margin: 1.5em 0 0.8em;
+        color: #1a1a1a;
+      }
+    }
+
+    .chapter-actions {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #eee;
+
+      button {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 8px;
+
+        &.active {
+          color: #2563eb;
+        }
+
+        mat-icon {
+          font-size: 24px;
+          width: 24px;
+          height: 24px;
+        }
+
+        span {
+          font-size: 14px;
+          color: #666;
+        }
+      }
     }
 
     .comments-section {
-      border-top: 1px solid #eee;
+      margin-top: 48px;
+      border-top: 2px solid #eee;
       padding-top: 32px;
 
       h2 {
@@ -220,13 +274,18 @@ import { AuthService } from '../../../auth/services/auth.service';
         width: 100%;
         margin-bottom: 16px;
       }
+
+      button {
+        float: right;
+      }
     }
 
     .comment-card {
-      background: #f5f5f5;
-      border-radius: 8px;
-      padding: 16px;
-      margin-bottom: 16px;
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      border: 1px solid #eee;
 
       .comment-header {
         display: flex;
@@ -237,17 +296,15 @@ import { AuthService } from '../../../auth/services/auth.service';
         img {
           width: 40px;
           height: 40px;
-          border-radius: 20px;
+          border-radius: 50%;
           object-fit: cover;
         }
 
         .comment-info {
-          display: flex;
-          flex-direction: column;
-
           .username {
             font-weight: 500;
             color: #1a1a1a;
+            display: block;
           }
 
           .timestamp {
@@ -258,7 +315,7 @@ import { AuthService } from '../../../auth/services/auth.service';
       }
 
       .comment-content {
-        font-size: 14px;
+        font-size: 15px;
         line-height: 1.6;
         color: #333;
         margin-bottom: 12px;
@@ -269,10 +326,15 @@ import { AuthService } from '../../../auth/services/auth.service';
       margin: 16px 0;
       padding-left: 52px;
 
+      mat-form-field {
+        width: 100%;
+      }
+
       .reply-actions {
         display: flex;
         justify-content: flex-end;
         gap: 8px;
+        margin-top: 8px;
       }
     }
 
@@ -285,6 +347,7 @@ import { AuthService } from '../../../auth/services/auth.service';
         border-radius: 8px;
         padding: 16px;
         margin-bottom: 12px;
+        border: 1px solid #eee;
       }
     }
 
@@ -294,18 +357,36 @@ import { AuthService } from '../../../auth/services/auth.service';
       }
 
       .chapter-container {
-        padding: 16px;
+        padding: 20px;
+        border-radius: 8px;
       }
 
       .chapter-header {
         .navigation {
           flex-wrap: wrap;
-          gap: 8px;
           
           button {
             flex: 1;
+            min-width: 0;
+            padding: 8px;
+            
+            span {
+              display: none;
+            }
           }
         }
+
+        h1 {
+          font-size: 24px;
+        }
+      }
+
+      .chapter-content {
+        font-size: 16px;
+      }
+
+      .replies {
+        padding-left: 24px;
       }
     }
   `]
@@ -362,29 +443,18 @@ export class ChapterReadPage implements OnInit {
     this.loading = true;
     this.error = '';
 
-    this.bookService.getChapterInfo(chapterId).subscribe({
-      next: (info: any) => {
-        this.bookId = info.bookId;
-        this.loadChapter(info.bookId, chapterId);
-        this.loadComments(chapterId);
-      },
-      error: (err) => {
-        this.error = 'Failed to load chapter information.';
-        this.loading = false;
-      }
-    });
-  }
-
-  loadChapter(bookId: number, chapterId: number) {
-    this.bookService.getChapter(bookId, chapterId).subscribe({
+    this.bookService.getChapter(chapterId).subscribe({
       next: (response) => {
         this.chapter = response;
+        this.bookId = response.bookId;
         this.setPrevNextChapters();
+        this.loadComments(chapterId);
         this.loading = false;
       },
-      error: (err: any) => {
+      error: (err) => {
         this.error = 'Failed to load chapter. Please try again.';
         this.loading = false;
+        console.error('Error loading chapter:', err);
       }
     });
   }

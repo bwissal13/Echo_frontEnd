@@ -195,9 +195,16 @@ export class BookService {
   }
 
   getChapters(bookId: number, page = 0, size = 10): Observable<PageResponse<Chapter>> {
+    const params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString());
+
     return this.http.get<PageResponse<Chapter>>(
-      `${this.API_URL}/chapters/book/${bookId}?page=${page}&size=${size}`,
-      { headers: this.getHeaders() }
+      `${this.getApiUrl()}/chapters/book/${bookId}`,
+      { 
+        headers: this.getHeaders(),
+        params
+      }
     ).pipe(
       retry({
         count: 3,
@@ -210,8 +217,15 @@ export class BookService {
     );
   }
 
-  getChapter(bookId: number, chapterId: number): Observable<Chapter> {
-    return this.http.get<Chapter>(`${this.API_URL}/${bookId}/chapters/${chapterId}`);
+  getChapter(chapterId: number): Observable<any> {
+    return this.http.get<any>(`${this.getApiUrl()}/chapters/${chapterId}`, {
+      headers: this.getHeaders()
+    }).pipe(
+      catchError(error => {
+        console.error('Error fetching chapter:', error);
+        return throwError(() => new Error('Failed to fetch chapter'));
+      })
+    );
   }
 
   createChapter(bookId: number, chapter: CreateChapterRequest): Observable<Chapter> {
@@ -271,9 +285,15 @@ export class BookService {
   }
 
   getChapterComments(chapterId: number): Observable<Comment[]> {
-    return this.http.get<Comment[]>(`${this.API_URL}/comments/chapter/${chapterId}`, {
-      headers: this.getHeaders()
-    });
+    return this.http.get<Comment[]>(
+      `${this.API_URL}/chapters/${chapterId}/comments`,
+      { headers: this.getHeaders() }
+    ).pipe(
+      catchError(error => {
+        console.error('Error fetching comments:', error);
+        return throwError(() => error);
+      })
+    );
   }
 
   addComment(chapterId: number, content: string): Observable<Comment> {
