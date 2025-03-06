@@ -77,6 +77,7 @@ export class BookEditorComponent implements OnInit, OnDestroy {
   pageIndex = 0;
   pageSize = 10;
   totalChapters = 0;
+  isPublic = false;
 
   constructor(
     private router: Router,
@@ -147,6 +148,7 @@ export class BookEditorComponent implements OnInit, OnDestroy {
         this.chapters = book.chapters || [];
         this.lastEdited = new Date(book.updatedAt);
         this.coverImageUrl = `url('${this.bookService.getImageUrl(book.coverImage)}')`;
+        this.isPublic = book.isPublic;
       },
       error: (error) => {
         console.error('Error loading book:', error);
@@ -179,7 +181,7 @@ export class BookEditorComponent implements OnInit, OnDestroy {
       title: this.bookTitle.trim(),
       description: this.bookContent || '',
       genre: this.selectedGenre,
-      isPublic: false,
+      isPublic: this.isPublic,
       coverImage: this.coverImage || undefined,
       subtitle: this.bookSubtitle,
       authorName: this.authorName,
@@ -265,7 +267,7 @@ export class BookEditorComponent implements OnInit, OnDestroy {
       title: this.bookTitle,
       description: this.bookContent,
       genre: this.selectedGenre,
-      isPublic: false,
+      isPublic: this.isPublic,
       coverImage: imageUrl || undefined
     };
     
@@ -285,21 +287,66 @@ export class BookEditorComponent implements OnInit, OnDestroy {
   }
 
   publish(): void {
-    const book = {
-      title: this.bookTitle,
-      description: this.bookContent,
-      genre: this.selectedGenre,
-      isPublic: true,
-      coverImage: this.coverImage
+    if (!this.bookId || !this.book) {
+      this.showSnackBar('Please save the book first', 'error');
+      return;
+    }
+
+    const willBePublic = !this.isPublic;
+    const dialogData: ConfirmDialogData = {
+      title: `Make Book ${willBePublic ? 'Public' : 'Private'}?`,
+      message: willBePublic ? 
+        'Making your book public will allow anyone to read it. Continue?' :
+        'Making your book private will hide it from other users. Continue?',
+      confirmText: 'Yes',
+      confirmColor: willBePublic ? 'primary' : 'warn'
     };
 
-    this.bookService.createBook(book).subscribe({
-      next: (response) => {
-        console.log('Book published:', response);
-        this.router.navigate(['/books']);
-      },
-      error: (error) => {
-        console.error('Error publishing book:', error);
+    this.dialog.open(ConfirmDialogComponent, {
+      data: dialogData,
+      width: '400px'
+    }).afterClosed().subscribe(result => {
+      if (result) {
+        // Show loading state
+        this.isLoading = true;
+        
+        this.bookService.setBookVisibility(this.bookId!, willBePublic).subscribe({
+          next: (updatedBook) => {
+            // Update local state
+            this.isPublic = willBePublic;
+            
+            // Ensure we maintain all required properties
+            if (this.book) {
+              this.book = {
+                id: this.book.id,
+                title: this.book.title,
+                description: this.book.description,
+                coverImage: this.book.coverImage,
+                genre: this.book.genre,
+                isPublic: willBePublic,
+                createdAt: this.book.createdAt,
+                updatedAt: new Date(),
+                // Optional properties
+                author: this.book.author,
+                chapters: this.book.chapters
+              };
+            }
+            
+            this.showSnackBar(
+              `Book is now ${willBePublic ? 'public' : 'private'}`,
+              'success'
+            );
+          },
+          error: (error) => {
+            this.errorMessage = error.message;
+            this.showSnackBar(error.message, 'error');
+            // Revert local state on error
+            this.isPublic = !willBePublic;
+          },
+          complete: () => {
+            this.isLoading = false;
+          }
+        });
       }
     });
   }
@@ -597,7 +644,7 @@ export class BookEditorComponent implements OnInit, OnDestroy {
       title: this.bookTitle,
       description: this.bookContent,
       genre: this.selectedGenre,
-      isPublic: false,
+      isPublic: this.isPublic,
       coverImage: this.coverImage
     };
     
@@ -626,7 +673,7 @@ export class BookEditorComponent implements OnInit, OnDestroy {
         title: this.bookTitle,
         description: this.bookContent,
         genre: this.selectedGenre,
-        isPublic: false,
+        isPublic: this.isPublic,
         coverImage: undefined
       };
       

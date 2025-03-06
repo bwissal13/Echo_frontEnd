@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams, HttpHeaders } from '@angular/common/http';
-import { Observable, throwError } from 'rxjs';
+import { Observable, throwError, map } from 'rxjs';
 import { tap, catchError, retry, delay } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { 
@@ -376,6 +376,32 @@ export class BookService {
       `${this.API_URL}/comments/${commentId}/like`,
       {},
       { headers: this.getHeaders() }
+    );
+  }
+
+  setBookVisibility(bookId: number, makePublic: boolean): Observable<Book> {
+    const visibility = makePublic ? 'public' : 'private';
+    return this.http.put<Book>(
+      `${this.API_URL}/${bookId}/visibility/${visibility}`,
+      {},
+      { headers: this.getHeaders() }
+    ).pipe(
+      tap(response => {
+        console.log('Visibility update response:', response);
+      }),
+      map(response => {
+        return {
+          ...response,
+          isPublic: makePublic
+        };
+      }),
+      catchError(error => {
+        console.error('Error updating book visibility:', error);
+        if (error.status === 403) {
+          return throwError(() => new Error('You do not have permission to change this book\'s visibility'));
+        }
+        return throwError(() => new Error('Failed to update book visibility'));
+      })
     );
   }
 } 
