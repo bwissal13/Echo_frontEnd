@@ -7,6 +7,7 @@ import { VerifyEmailComponent } from './auth/components/verify-email/verify-emai
 import { ForgotPasswordComponent } from './auth/components/forgot-password/forgot-password.component';
 import { ResetPasswordComponent } from './auth/components/reset-password/reset-password.component';
 import { BookEditorComponent } from './books/components/book-editor/book-editor.component';
+import { ChapterReadPage } from './books/pages/chapter-read/chapter-read.page';
 
 export const routes: Routes = [
   {
@@ -64,9 +65,9 @@ export const routes: Routes = [
               .then(m => m.BookDetailPage)
           },
           {
-            path: 'chapter/:chapterId',
-            loadComponent: () => import('./books/pages/chapter-read/chapter-read.page')
-              .then(m => m.ChapterReadPage)
+            path: 'chapter/:id',
+            component: ChapterReadPage,
+            canActivate: [AuthGuard]
           }
         ]
       }

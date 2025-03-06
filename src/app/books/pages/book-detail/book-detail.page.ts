@@ -168,7 +168,7 @@ export class BookDetailPage implements OnInit, OnDestroy {
   }
 
   readChapter(chapterId: number) {
-    this.router.navigate(['/books/chapters', chapterId]);
+    this.router.navigate(['/books/chapter', chapterId]);
   }
 
   toggleSubscription() {
