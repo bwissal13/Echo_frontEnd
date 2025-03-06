@@ -3,7 +3,10 @@
   
   <div class="main-content">
     <div class="header-section">
-      <h1>Discover Books</h1>
+      <div class="top-row">
+        <app-back-button></app-back-button>
+        <h1>Discover Books</h1>
+      </div>
       <app-search-bar (search)="onSearch($event)" class="search-bar"></app-search-bar>
     </div>
 

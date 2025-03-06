@@ -9,6 +9,8 @@ import { SearchBarComponent } from '../../../shared/components/search-bar/search
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
 import { ErrorMessageComponent } from '../../../shared/components/error-message/error-message.component';
 import { BookService } from '../../services/book.service';
+import { Location } from '@angular/common';
+import { BackButtonComponent } from '../../../shared/components/back-button/back-button.component';
 
 @Component({
   selector: 'app-public-books',
@@ -22,7 +24,8 @@ import { BookService } from '../../services/book.service';
     SidebarComponent,
     SearchBarComponent,
     LoadingSpinnerComponent,
-    ErrorMessageComponent
+    ErrorMessageComponent,
+    BackButtonComponent
   ],
   templateUrl: './public-books.page.html',
   styleUrls: ['./public-books.page.scss']
@@ -39,7 +42,8 @@ export class PublicBooksPage implements OnInit {
 
   constructor(
     private bookService: BookService,
-    private router: Router
+    private router: Router,
+    private location: Location
   ) {}
 
   ngOnInit() {
@@ -111,5 +115,9 @@ export class PublicBooksPage implements OnInit {
 
   onImageError(event: any): void {
     event.target.src = 'assets/images/default-book-cover.jpg';
+  }
+
+  goBack(): void {
+    this.location.back();
   }
 } 
