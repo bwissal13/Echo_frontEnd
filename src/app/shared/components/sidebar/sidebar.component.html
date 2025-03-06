@@ -21,6 +21,10 @@
         <mat-icon>add_circle</mat-icon>
         <span *ngIf="isExpanded$ | async">Create New Book</span>
       </a>
+      <a routerLink="/books/public" class="menu-item" routerLinkActive="active">
+        <mat-icon>public</mat-icon>
+        <span *ngIf="isExpanded$ | async">Public Books</span>
+      </a>
     </ng-container>
   </div>
 

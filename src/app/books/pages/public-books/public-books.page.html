@@ -1,0 +1,72 @@
+<div class="app-container">
+  <app-sidebar></app-sidebar>
+  
+  <div class="main-content">
+    <div class="header-section">
+      <h1>Discover Books</h1>
+      <app-search-bar (search)="onSearch($event)" class="search-bar"></app-search-bar>
+    </div>
+
+    <div class="filters-section">
+      <button mat-button [class.active]="currentFilter === 'all'" (click)="filterBooks('all')">
+        <mat-icon>library_books</mat-icon>
+        All Books
+      </button>
+      <button mat-button [class.active]="currentFilter === 'popular'" (click)="filterBooks('popular')">
+        <mat-icon>trending_up</mat-icon>
+        Popular
+      </button>
+      <button mat-button [class.active]="currentFilter === 'recent'" (click)="filterBooks('recent')">
+        <mat-icon>new_releases</mat-icon>
+        New Releases
+      </button>
+    </div>
+
+    <app-loading-spinner *ngIf="loading"></app-loading-spinner>
+    <app-error-message *ngIf="error" [message]="error"></app-error-message>
+
+    <div class="books-grid" *ngIf="!loading && !error && books.length > 0">
+      <div class="book-card" *ngFor="let book of books" (click)="navigateToBook(book.id)">
+        <div class="book-cover">
+          <img [src]="getBookCoverUrl(book.coverImage)" 
+               [alt]="book.title"
+               (error)="onImageError($event)">
+          <div class="book-hover">
+            <button mat-raised-button color="primary">Read More</button>
+          </div>
+        </div>
+        <div class="book-info">
+          <h3>{{ book.title }}</h3>
+          <p class="author">by {{ book.authorFullName }}</p>
+          <div class="stats">
+            <span class="stat">
+              <mat-icon>visibility</mat-icon>
+              {{ book.views || 0 }}
+            </span>
+            <span class="stat">
+              <mat-icon>people</mat-icon>
+              {{ book.subscribersCount || 0 }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="no-books" *ngIf="!loading && !error && books.length === 0">
+      <mat-icon>menu_book</mat-icon>
+      <h2>No Books Found</h2>
+      <p>Try adjusting your search or filters to find what you're looking for</p>
+    </div>
+
+    <mat-paginator
+      *ngIf="!loading && !error && totalBooks > 0"
+      [length]="totalBooks"
+      [pageSize]="pageSize"
+      [pageSizeOptions]="[12, 24, 36, 48]"
+      [pageIndex]="currentPage"
+      (page)="onPageChange($event)"
+      class="custom-paginator"
+      aria-label="Select page">
+    </mat-paginator>
+  </div>
+</div> 

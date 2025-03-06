@@ -52,6 +52,21 @@ export const routes: Routes = [
             path: 'edit/:id',
             component: BookEditorComponent,
             canActivate: [AuthGuard]
+          },
+          {
+            path: 'public',
+            loadComponent: () => import('./books/pages/public-books/public-books.page')
+              .then(m => m.PublicBooksPage)
+          },
+          {
+            path: 'public/:id',
+            loadComponent: () => import('./books/pages/book-detail/book-detail.page')
+              .then(m => m.BookDetailPage)
+          },
+          {
+            path: 'chapter/:chapterId',
+            loadComponent: () => import('./books/pages/chapter-read/chapter-read.page')
+              .then(m => m.ChapterReadPage)
           }
         ]
       }

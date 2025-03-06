@@ -14,6 +14,17 @@ import {
   PageResponse 
 } from '../models/book.interface';
 
+interface Comment {
+  id: number;
+  content: string;
+  createdAt: string;
+  userFullName: string;
+  userAvatar: string;
+  likesCount: number;
+  isLiked: boolean;
+  replies?: Comment[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -28,6 +39,10 @@ export class BookService {
     return new HttpHeaders({
       'Authorization': `Bearer ${token}`
     });
+  }
+
+  getApiUrl(): string {
+    return this.API_URL.replace('/books', '');
   }
 
   getBooks(page: number = 0, size: number = 12): Observable<BookPage> {
@@ -80,13 +95,26 @@ export class BookService {
     );
   }
 
-  getPublicBooks(page: number = 0, size: number = 10): Observable<BookPage> {
-    const params = new HttpParams()
+  getPublicBooks(page: number, size: number, filter: string, search: string): Observable<PageResponse<any>> {
+    let params = new HttpParams()
       .set('page', page.toString())
       .set('size', size.toString())
-      .set('sort', 'createdAt,desc');
+      .set('filter', filter)
+      .set('search', search || '');
 
-    return this.http.get<BookPage>(`${this.API_URL}/public`, { params });
+    return this.http.get<PageResponse<any>>(`${this.API_URL}`, { 
+      params,
+      headers: this.getHeaders() 
+    }).pipe(
+      retry({
+        count: 3,
+        delay: 1000
+      }),
+      catchError(error => {
+        console.error('Error fetching public books:', error);
+        return throwError(() => error);
+      })
+    );
   }
 
   searchBooks(query: string, page: number = 0, size: number = 10): Observable<BookPage> {
@@ -234,5 +262,120 @@ export class BookService {
     return this.http.delete<void>(`${this.API_URL}/trash/${bookId}`, {
       headers: this.getHeaders()
     });
+  }
+
+  getChapterInfo(chapterId: number): Observable<any> {
+    return this.http.get<any>(`${this.API_URL}/chapters/${chapterId}/info`, {
+      headers: this.getHeaders()
+    });
+  }
+
+  getChapterComments(chapterId: number): Observable<Comment[]> {
+    return this.http.get<Comment[]>(`${this.API_URL}/comments/chapter/${chapterId}`, {
+      headers: this.getHeaders()
+    });
+  }
+
+  addComment(chapterId: number, content: string): Observable<Comment> {
+    return this.http.post<Comment>(`${this.API_URL}/comments`, {
+      content,
+      bookId: null,
+      chapterId,
+      parentCommentId: null
+    }, {
+      headers: this.getHeaders()
+    });
+  }
+
+  addBookComment(bookId: number, content: string): Observable<Comment> {
+    return this.http.post<Comment>(
+      `${this.API_URL}/${bookId}/comments`,
+      { 
+        content,
+        bookId,
+        parentCommentId: null
+      },
+      { headers: this.getHeaders() }
+    ).pipe(
+      catchError(error => {
+        console.error('Error adding comment:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  addCommentReply(bookId: number, parentCommentId: number, content: string): Observable<Comment> {
+    return this.http.post<Comment>(
+      `${this.API_URL}/${bookId}/comments`,
+      {
+        content,
+        bookId,
+        parentCommentId
+      },
+      { headers: this.getHeaders() }
+    ).pipe(
+      catchError(error => {
+        console.error('Error adding reply:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  getCommentReplies(commentId: number): Observable<Comment[]> {
+    return this.http.get<Comment[]>(
+      `${this.API_URL}/comments/${commentId}/replies`,
+      { headers: this.getHeaders() }
+    ).pipe(
+      catchError(error => {
+        console.error('Error fetching replies:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  toggleChapterReaction(chapterId: number, type: string): Observable<any> {
+    return this.http.post<any>(
+      `${this.API_URL}/chapters/${chapterId}/reactions`,
+      { type },
+      { headers: this.getHeaders() }
+    );
+  }
+
+  getBookCoverUrl(coverImage: string | null): string {
+    if (!coverImage) {
+      return 'assets/images/default-book-cover.jpg';
+    }
+    if (coverImage.startsWith('http')) {
+      return coverImage;
+    }
+    return `${this.FILE_API_URL}/${coverImage}`;
+  }
+
+  getBookComments(bookId: number): Observable<Comment[]> {
+    return this.http.get<Comment[]>(
+      `${this.API_URL}/${bookId}/comments`,
+      { headers: this.getHeaders() }
+    ).pipe(
+      catchError(error => {
+        console.error('Error fetching comments:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  toggleBookSubscription(bookId: number): Observable<{ isSubscribed: boolean }> {
+    return this.http.post<{ isSubscribed: boolean }>(
+      `${this.API_URL}/${bookId}/subscribe`,
+      {},
+      { headers: this.getHeaders() }
+    );
+  }
+
+  toggleCommentLike(commentId: number): Observable<{ likesCount: number }> {
+    return this.http.post<{ likesCount: number }>(
+      `${this.API_URL}/comments/${commentId}/like`,
+      {},
+      { headers: this.getHeaders() }
+    );
   }
 } 

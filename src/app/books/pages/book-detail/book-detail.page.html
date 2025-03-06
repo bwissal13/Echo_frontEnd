@@ -1,0 +1,215 @@
+<div class="app-container">
+  <app-sidebar></app-sidebar>
+  
+  <div class="main-content">
+  
+
+    <app-loading-spinner *ngIf="loading"></app-loading-spinner>
+    <app-error-message *ngIf="error" [message]="error"></app-error-message>
+
+    <div class="book-detail" *ngIf="book && !loading">
+      <!-- Main Book Info -->
+      <div class="book-content">
+        <!-- Book Cover -->
+        <div class="book-cover">
+          <img [src]="getBookCoverUrl(book.coverImage)" [alt]="book.title">
+        </div>
+
+        <!-- Book Information -->
+        <div class="book-info">
+          <h1>{{ book.title }}</h1>
+          <p class="author">{{ book.authorFullName }}</p>
+          
+          <p class="description">{{ book.description }}</p>
+
+          <!-- Book Details Grid -->
+          <div class="book-details">
+            <div class="detail-section">
+              <h3>Editors</h3>
+              <p>{{ book.editors?.join(', ') || 'Not specified' }}</p>
+            </div>
+            <div class="detail-section">
+              <h3>Language</h3>
+              <p>{{ book.language || 'English' }}</p>
+            </div>
+            <div class="detail-section">
+              <h3>Paperback</h3>
+              <p>{{ book.pages }} pages</p>
+              <p>ISBN: {{ book.isbn }}</p>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="action-buttons">
+            <button mat-raised-button color="primary" class="start-reading" (click)="startReading()">
+              Start reading →
+            </button>
+            <button mat-icon-button class="bookmark">
+              <mat-icon>bookmark_border</mat-icon>
+            </button>
+            <button mat-icon-button class="share">
+              <mat-icon>share</mat-icon>
+            </button>
+            <button mat-icon-button class="download">
+              <mat-icon>download</mat-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs Section -->
+      <div class="tabs-section">
+        <div class="tab-buttons">
+          <button [class.active]="activeTab === 'description'" (click)="activeTab = 'description'">
+            Description
+          </button>
+          <button [class.active]="activeTab === 'chapters'" (click)="activeTab = 'chapters'">
+            Chapters
+          </button>
+          <button [class.active]="activeTab === 'comments'" (click)="activeTab = 'comments'">
+            Comments
+          </button>
+        </div>
+
+        <!-- Description Tab -->
+        <div class="tab-content" *ngIf="activeTab === 'description'">
+          <div class="full-description">
+            <h2>About this book</h2>
+            <p>{{ book.description }}</p>
+          </div>
+        </div>
+
+        <!-- Chapters Tab -->
+        <div class="tab-content" *ngIf="activeTab === 'chapters'">
+          <div class="chapters-list">
+            <div class="chapter-item" *ngFor="let chapter of book.chapters; let i = index">
+              <div class="chapter-info">
+                <span class="chapter-number">Chapter {{ i + 1 }}</span>
+                <h3>{{ chapter.title }}</h3>
+                <p>{{ chapter.description }}</p>
+              </div>
+              <div class="chapter-actions">
+                <button mat-button color="primary" (click)="readChapter(chapter.id)">
+                  Read Chapter
+                </button>
+                <div class="chapter-stats">
+                  <span><mat-icon>visibility</mat-icon> {{ chapter.views || 0 }}</span>
+                  <span><mat-icon>comment</mat-icon> {{ chapter.commentsCount || 0 }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Comments Tab -->
+        <div class="tab-content" *ngIf="activeTab === 'comments'">
+          <div class="comments-section">
+            <!-- Comment Form -->
+            <div class="comment-form" *ngIf="isAuthenticated">
+              <img [src]="currentUserAvatar" [alt]="currentUserName" class="user-avatar">
+              <div class="input-wrapper">
+                <input type="text" 
+                  [(ngModel)]="newComment" 
+                  placeholder="Add a comment..."
+                  (keyup.enter)="addComment()">
+                <button mat-button 
+                  color="primary" 
+                  [disabled]="!newComment.trim()"
+                  (click)="addComment()">
+                  Post
+                </button>
+              </div>
+            </div>
+
+            <!-- Comments List -->
+            <div class="comments-list">
+              <div class="comment-card" *ngFor="let comment of comments">
+                <div class="comment-header">
+                  <div class="user-info">
+                    <img [src]="comment.userAvatar" [alt]="comment.userFullName" class="user-avatar">
+                    <div class="text-content">
+                      <span class="username">{{ comment.userFullName }}</span>
+                      <span class="comment-text">{{ comment.content }}</span>
+                    </div>
+                  </div>
+                  <div class="comment-actions">
+                    <button mat-icon-button [class.liked]="comment.isLiked" (click)="likeComment(comment)">
+                      <mat-icon>{{ comment.isLiked ? 'favorite' : 'favorite_border' }}</mat-icon>
+                    </button>
+                    <button mat-icon-button [matMenuTriggerFor]="menu">
+                      <mat-icon>more_horiz</mat-icon>
+                    </button>
+                    <mat-menu #menu="matMenu">
+                      <button mat-menu-item (click)="toggleReply(comment.id)">
+                        <mat-icon>reply</mat-icon>
+                        <span>Reply</span>
+                      </button>
+                      <button mat-menu-item (click)="reportComment(comment)">
+                        <mat-icon>flag</mat-icon>
+                        <span>Report</span>
+                      </button>
+                    </mat-menu>
+                  </div>
+                </div>
+
+                <div class="comment-metadata">
+                  <span class="likes" *ngIf="comment.likesCount">
+                    {{ comment.likesCount }} {{ comment.likesCount === 1 ? 'like' : 'likes' }}
+                  </span>
+                  <span class="timestamp">{{ comment.createdAt | date:'MMM d' }}</span>
+                  <button mat-button (click)="toggleReply(comment.id)">Reply</button>
+                </div>
+
+                <!-- Replies -->
+                <div class="replies" *ngIf="getRepliesCount(comment) > 0">
+                  <button mat-button class="view-replies" (click)="toggleReplies(comment)">
+                    <mat-icon>subdirectory_arrow_right</mat-icon>
+                    {{ comment.showReplies ? 'Hide' : 'View' }} {{ getRepliesCount(comment) }}
+                    {{ getRepliesCount(comment) === 1 ? 'reply' : 'replies' }}
+                  </button>
+
+                  <div class="replies-list" *ngIf="comment.showReplies">
+                    <div class="reply-item" *ngFor="let reply of comment.replies">
+                      <div class="user-info">
+                        <img [src]="reply.userAvatar" [alt]="reply.userFullName" class="user-avatar">
+                        <div class="text-content">
+                          <span class="username">{{ reply.userFullName }}</span>
+                          <span class="reply-text">{{ reply.content }}</span>
+                        </div>
+                      </div>
+                      <div class="reply-metadata">
+                        <span class="timestamp">{{ reply.createdAt | date:'MMM d' }}</span>
+                        <span class="likes" *ngIf="reply.likesCount">
+                          {{ reply.likesCount }} {{ reply.likesCount === 1 ? 'like' : 'likes' }}
+                        </span>
+                        <button mat-icon-button [class.liked]="reply.isLiked" (click)="likeReply(reply)">
+                          <mat-icon>{{ reply.isLiked ? 'favorite' : 'favorite_border' }}</mat-icon>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Reply Form -->
+                <div class="reply-form" *ngIf="replyingTo === comment.id">
+                  <div class="input-wrapper">
+                    <input type="text" 
+                      [(ngModel)]="replyContent" 
+                      placeholder="Reply to {{ comment.userFullName }}..."
+                      (keyup.enter)="addReply(comment.id)">
+                    <button mat-button 
+                      color="primary" 
+                      [disabled]="!replyContent.trim()"
+                      (click)="addReply(comment.id)">
+                      Post
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div> 
