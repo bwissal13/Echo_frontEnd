@@ -4,8 +4,29 @@ import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../auth/services/auth.service';
+import { BookService } from '../books/services/book.service';
+import { ChapterService } from '../books/services/chapter.service';
 import { SidebarComponent } from '../shared/components/sidebar/sidebar.component';
 import { SearchBarComponent } from '../shared/components/search-bar/search-bar.component';
+import { forkJoin } from 'rxjs';
+import { map } from 'rxjs/operators';
+
+interface PopularBook {
+  id: number;
+  title: string;
+  coverImage: string;
+  totalEngagement: number; // comments + views + reactions
+  commentsCount: number;
+  viewsCount: number;
+}
+
+interface ReaderActivity {
+  userFullName: string;
+  userAvatar: string;
+  content: string;
+  createdAt: string;
+  chapterTitle: string;
+}
 
 @Component({
   selector: 'app-dashboard',
@@ -23,18 +44,19 @@ import { SearchBarComponent } from '../shared/components/search-bar/search-bar.c
       <app-sidebar></app-sidebar>
 
       <div class="main-content">
-          <app-search-bar></app-search-bar>
-      
+        <app-search-bar></app-search-bar>
 
-        <div class="current-book">
+        <div class="current-book" *ngIf="currentBook">
           <div class="book-info">
-            <h1>Happy reading, Harvey</h1>
-            <p>Wow! you've delved deep into the wizarding world's secrets.</p>
-            <p>How Harry's parents died yet? Oops, looks like you're not there yet. Get reading now!</p>
-            <button>Start reading →</button>
+            <h1>Happy reading, {{ currentUserName }}</h1>
+            <p>{{ currentBook.description || 'Discover our most engaging book!' }}</p>
+            <p>{{ currentBook.commentsCount || 0 }} readers have shared their thoughts. Join the discussion!</p>
+            <button (click)="startReading()">Start reading →</button>
           </div>
           <div class="book-preview">
-            <img src="assets/books/current-book.jpg" alt="Current Book">
+            <img [src]="currentBook.coverImage" 
+                 [alt]="currentBook.title"
+                 (error)="onImageError($event)">
           </div>
         </div>
 
@@ -43,53 +65,38 @@ import { SearchBarComponent } from '../shared/components/search-bar/search-bar.c
             <div class="section">
               <div class="section-header">
                 <h2>Popular Now</h2>
-                <button class="more-btn">••</button>
               </div>
               <div class="book-grid">
-                <div class="book-card" *ngFor="let book of popularBooks">
-                  <img [src]="book.coverImage" [alt]="book.title">
+                <div class="book-card" *ngFor="let book of popularBooks" 
+                     (click)="navigateToBook(book.id)">
+                  <img [src]="book.coverImage" 
+                       [alt]="book.title"
+                       (error)="onImageError($event)">
                   <p class="book-title">{{ book.title }}</p>
-                </div>
-              </div>
-            </div>
-
-            
-          </div>
-
-          <div class="right-column">
-            <div class="section schedule-section">
-              <div class="section-header">
-                <h2>Schedule Reading</h2>
-                <div class="nav-buttons">
-                  <button><mat-icon>chevron_left</mat-icon></button>
-                  <button><mat-icon>chevron_right</mat-icon></button>
-                </div>
-              </div>
-              <div class="calendar">
-                <div class="calendar-header">
-                  <span *ngFor="let day of weekDays">{{ day }}</span>
-                </div>
-                <div class="calendar-days">
-                  <div class="day" *ngFor="let date of calendarDates" 
-                       [class.active]="date.isActive">
-                    {{ date.day }}
+                  <div class="engagement-stats">
+                    <span><mat-icon>visibility</mat-icon> {{ book.viewsCount }}</span>
+                    <span><mat-icon>comment</mat-icon> {{ book.commentsCount }}</span>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
 
+          <div class="right-column">
             <div class="section">
               <div class="section-header">
-                <h2>Reader Friends</h2>
-                <button class="more-btn">••</button>
+                <h2>Reader Activities</h2>
               </div>
               <div class="friends-list">
-                <div class="friend" *ngFor="let friend of readerFriends">
-                  <img [src]="friend.avatar" [alt]="friend.name">
+                <div class="friend" *ngFor="let activity of readerActivities">
+                  <img [src]="activity.userAvatar" [alt]="activity.userFullName">
                   <div class="friend-info">
-                    <p class="friend-name">{{ friend.name }}</p>
-                    <p class="friend-status">{{ friend.lastActivity }}</p>
-                    <p class="chapter-info">← Chapter Five: Dragon Alley <span class="time">{{ friend.timeAgo }}</span></p>
+                    <p class="friend-name">{{ activity.userFullName }}</p>
+                    <p class="friend-status">{{ activity.content }}</p>
+                    <p class="chapter-info">
+                      ← {{ activity.chapterTitle }}
+                      <span class="time">{{ activity.createdAt | date:'MMM d' }}</span>
+                    </p>
                   </div>
                 </div>
               </div>
@@ -101,10 +108,10 @@ import { SearchBarComponent } from '../shared/components/search-bar/search-bar.c
   `,
   styles: [`
     .app-container {
-      background: #ffffff;
       display: grid;
       grid-template-columns: auto 1fr;
       min-height: 100vh;
+      background-color: #f8f9fa;
     }
 
     .main-content {
@@ -413,68 +420,158 @@ import { SearchBarComponent } from '../shared/components/search-bar/search-bar.c
         grid-template-columns: repeat(2, 1fr);
       }
     }
+
+    .engagement-stats {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+      color: #666;
+      font-size: 12px;
+
+      span {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+
+        mat-icon {
+          font-size: 16px;
+          width: 16px;
+          height: 16px;
+        }
+      }
+    }
+
+    .loading-state {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 200px;
+    }
   `]
 })
 export class DashboardComponent implements OnInit {
-  popularBooks = [
-    {
-      title: 'The World of Ice and Fire',
-      coverImage: 'assets/books/ice-and-fire.jpg'
-    },
-    {
-      title: 'Fantastic Beasts Volume II',
-      coverImage: 'assets/books/fantastic-beasts.jpg'
-    },
-    {
-      title: 'Game of Thrones Volume III',
-      coverImage: 'assets/books/got.jpg'
-    },
-    {
-      title: 'Fear',
-      coverImage: 'assets/books/fear.jpg'
-    }
-  ];
-
-  currentSeries = {
-    title: 'A Legend of Ice and Fire: The Ice Horse',
-    volumes: 2,
-    chaptersPerVol: '8 chapters each vol',
-    covers: ['assets/books/ice-horse-1.jpg', 'assets/books/ice-horse-2.jpg']
-  };
-
-  weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-  calendarDates = Array.from({length: 7}, (_, i) => ({
-    day: i + 11,
-    isActive: i + 11 === 15
-  }));
-
-  readerFriends = [
-    {
-      name: 'Roberto Jordan',
-      avatar: 'assets/avatars/roberto.jpg',
-      lastActivity: 'What a delightful and magical chapter it is indeed transports readers to the wizarding world.',
-      timeAgo: '2 mins ago'
-    },
-    {
-      name: 'Anna Henry',
-      avatar: 'assets/avatars/anna.jpg',
-      lastActivity: 'I finished reading the chapter last night and',
-      timeAgo: '5 mins ago'
-    }
-  ];
+  popularBooks: PopularBook[] = [];
+  currentBook: any = null;
+  readerActivities: ReaderActivity[] = [];
+  loading = true;
+  currentUserName = '';
+  private readonly DEFAULT_BOOK_COVER = 'assets/images/default-book-cover.jpg';
 
   constructor(
-    private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private bookService: BookService,
+    private chapterService: ChapterService,
+    private authService: AuthService
   ) {}
 
-  logout(): void {
-    this.authService.logout();
-    this.router.navigate(['/auth/login']);
+  ngOnInit() {
+    // Get current user info
+    this.authService.getCurrentUser().subscribe({
+      next: (user) => {
+        if (user) {
+          this.currentUserName = user.fullName || 'Reader';
+        }
+      }
+    });
+
+    // Load popular books and activities
+    this.loadDashboardData();
   }
 
-  ngOnInit(): void {
-    // Component initialization logic can go here
+  private loadDashboardData() {
+    this.loading = true;
+    this.bookService.getPublicBooks(0, 10, '', '').subscribe({
+      next: (response) => {
+        if (response.content && response.content.length > 0) {
+          // Process books to calculate engagement
+          const processedBooks = response.content.map(book => ({
+            id: book.id,
+            title: book.title,
+            coverImage: this.bookService.getBookCoverUrl(book.coverImage),
+            description: book.description,
+            totalEngagement: this.calculateEngagement(book),
+            commentsCount: book.commentsCount || 0,
+            viewsCount: book.views || 0
+          }));
+
+          // Sort by total engagement and take top 4
+          this.popularBooks = processedBooks
+            .sort((a: PopularBook, b: PopularBook) => b.totalEngagement - a.totalEngagement)
+            .slice(0, 4);
+
+          // Set current book as the most popular one
+          this.currentBook = this.popularBooks[0];
+
+          // Load reader activities for the most popular book
+          if (this.currentBook) {
+            this.loadReaderActivities(this.currentBook.id);
+          }
+        }
+        this.loading = false;
+      },
+      error: (error) => {
+        console.error('Error loading dashboard data:', error);
+        this.loading = false;
+      }
+    });
   }
-} 
+
+  private calculateEngagement(book: any): number {
+    return (book.commentsCount || 0) + 
+           (book.views || 0) + 
+           (book.reactions?.like || 0);
+  }
+
+  private loadReaderActivities(bookId: number) {
+    // Load both book comments and first chapter comments
+    forkJoin({
+      bookComments: this.bookService.getBookComments(bookId),
+      chapters: this.bookService.getChapters(bookId) // Fixed method name
+    }).subscribe({
+      next: ({ bookComments, chapters }) => {
+        if (chapters.content && chapters.content.length > 0) { // Access content property
+          // Get comments for the first chapter
+          this.chapterService.getChapterComments(chapters.content[0].id).subscribe({
+            next: (chapterComments) => {
+              // Combine and format all activities
+              const activities = [
+                ...this.formatComments(bookComments, 'Book'),
+                ...this.formatComments(chapterComments, chapters.content[0].title)
+              ];
+
+              // Sort by date and take latest 5
+              this.readerActivities = activities
+                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                .slice(0, 5);
+            }
+          });
+        }
+      }
+    });
+  }
+
+  private formatComments(comments: any[], contextTitle: string): ReaderActivity[] {
+    return comments.map(comment => ({
+      userFullName: comment.userFullName,
+      userAvatar: comment.userAvatar || 'assets/images/default-avatar.png',
+      content: comment.content,
+      createdAt: comment.createdAt,
+      chapterTitle: contextTitle
+    }));
+  }
+
+  startReading() {
+    if (this.currentBook) {
+      this.router.navigate(['/books/public', this.currentBook.id]);
+    }
+  }
+
+  navigateToBook(bookId: number) {
+    this.router.navigate(['/books/public', bookId]);
+  }
+
+  onImageError(event: Event) {
+    const img = event.target as HTMLImageElement;
+    img.src = this.DEFAULT_BOOK_COVER;
+  }
+}

@@ -1,0 +1,33 @@
+$background-color: #f8f9fa;
+$card-background: #ffffff;
+$primary-color: #2563eb;
+$primary-hover: #1d4ed8;
+$border-color: #eee;
+$text-primary: #1a1a1a;
+$text-secondary: #666;
+$border-radius: 12px;
+$shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+
+// Common card styles
+@mixin card {
+  background: $card-background;
+  border-radius: $border-radius;
+  box-shadow: $shadow;
+  border: 1px solid $border-color;
+}
+
+// Common container styles
+@mixin page-container {
+  background-color: $background-color;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: auto 1fr;
+}
+
+// Common content styles
+@mixin main-content {
+  padding: 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
