@@ -11,11 +11,13 @@ export enum Role {
 
 export interface User {
   id: number;
-  email: string;
   firstname: string;
   lastname: string;
-  bio: string;
-  profilePicture: string;
+  email: string;
+  bio?: string;
+  profilePicture?: string;
+  booksCount?: number;
+  phrasesCount?: number;
   role: string;
   enabled: boolean;
   emailVerified: boolean;
@@ -44,17 +46,7 @@ export interface RegisterData {
 
 export interface AuthResponse {
   accessToken: string;
-  user: {
-    id: number;
-    firstname: string;
-    lastname: string;
-    email: string;
-    bio: string;
-    profilePicture: string;
-    role: string;
-    enabled: boolean;
-    emailVerified: boolean;
-  };
+  user: User;
   message?: string;
 }
 

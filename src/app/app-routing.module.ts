@@ -8,6 +8,7 @@ import { ForgotPasswordComponent } from './auth/components/forgot-password/forgo
 import { ResetPasswordComponent } from './auth/components/reset-password/reset-password.component';
 import { BookEditorComponent } from './books/components/book-editor/book-editor.component';
 import { ChapterReadPage } from './books/pages/chapter-read/chapter-read.page';
+import { ProfileComponent } from './auth/components/profile/profile.component';
 
 export const routes: Routes = [
   {
@@ -75,6 +76,11 @@ export const routes: Routes = [
               .then(m => m.SavedPhrasesPage)
           }
         ]
+      },
+      {
+        path: 'profile',
+        component: ProfileComponent,
+        canActivate: [AuthGuard]
       }
     ]
   },

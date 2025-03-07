@@ -1,0 +1,81 @@
+<div class="profile-container">
+  <!-- Simplified Header -->
+  <div class="profile-header">
+    <div class="profile-main">
+      <div class="avatar-wrapper">
+        <img [src]="user?.profilePicture || 'assets/images/default-avatar.png'" 
+             alt="Profile picture"
+             class="profile-avatar">
+        <button type="button" mat-mini-fab class="edit-avatar-btn">
+          <mat-icon>photo_camera</mat-icon>
+        </button>
+      </div>
+      <div class="profile-info">
+        <h1>{{ user?.firstname }} {{ user?.lastname }}</h1>
+        <p class="user-role">{{ user?.role | titlecase }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Simplified Form Section -->
+  <div class="profile-content">
+    <form [formGroup]="profileForm" (ngSubmit)="onSubmit()" class="profile-form">
+      <div class="form-section">
+        <!-- Name Fields -->
+        <div class="input-row">
+          <div class="input-group">
+            <label>First Name</label>
+            <input type="text" 
+                   formControlName="firstname" 
+                   [class.error]="profileForm.get('firstname')?.invalid && profileForm.get('firstname')?.touched">
+            <div class="error-message" *ngIf="profileForm.get('firstname')?.invalid && profileForm.get('firstname')?.touched">
+              {{ getErrorMessage('firstname') }}
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label>Last Name</label>
+            <input type="text" 
+                   formControlName="lastname"
+                   [class.error]="profileForm.get('lastname')?.invalid && profileForm.get('lastname')?.touched">
+            <div class="error-message" *ngIf="profileForm.get('lastname')?.invalid && profileForm.get('lastname')?.touched">
+              {{ getErrorMessage('lastname') }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Email Field -->
+        <div class="input-group">
+          <label>Email</label>
+          <input type="email" 
+                 formControlName="email"
+                 [class.error]="profileForm.get('email')?.invalid && profileForm.get('email')?.touched">
+          <div class="error-message" *ngIf="profileForm.get('email')?.invalid && profileForm.get('email')?.touched">
+            {{ getErrorMessage('email') }}
+          </div>
+        </div>
+
+        <!-- Bio Field -->
+        <div class="input-group">
+          <label>Bio</label>
+          <textarea formControlName="bio" 
+                    rows="4"
+                    [class.error]="profileForm.get('bio')?.invalid && profileForm.get('bio')?.touched"></textarea>
+          <div class="error-message" *ngIf="profileForm.get('bio')?.invalid && profileForm.get('bio')?.touched">
+            {{ getErrorMessage('bio') }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button type="submit" 
+                class="save-btn" 
+                [disabled]="!profileForm.valid || loading">
+          <mat-spinner *ngIf="loading" diameter="20"></mat-spinner>
+          <span *ngIf="!loading">Save Changes</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div> 

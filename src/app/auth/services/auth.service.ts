@@ -24,7 +24,9 @@ import { MatSnackBar } from '@angular/material/snack-bar';
   providedIn: 'root'
 })
 export class AuthService {
-  private readonly API_URL = `${environment.apiUrl}/api/v1/auth`;
+  private readonly API_URL = `${environment.apiUrl}/api/v1`;
+  private readonly AUTH_URL = `${this.API_URL}/auth`;
+  private readonly USERS_URL = `${this.API_URL}/users`;
   private readonly TOKEN_KEY = 'token';
   private readonly REFRESH_TOKEN_KEY = 'refreshToken';
   private readonly TOKEN_EXPIRY_KEY = 'tokenExpiry';
@@ -97,7 +99,7 @@ export class AuthService {
     this.setLoading(true);
     console.log('Sending registration request:', userData);
     
-    return this.http.post<AuthResponse>(`${this.API_URL}/register`, userData, {
+    return this.http.post<AuthResponse>(`${this.AUTH_URL}/register`, userData, {
       headers: new HttpHeaders({
         'Content-Type': 'application/json',
         'Accept': 'application/json'
@@ -156,7 +158,7 @@ export class AuthService {
 
   verifyEmail(data: VerifyEmailData): Observable<AuthResponse> {
     this.setLoading(true);
-    return this.http.post<AuthResponse>(`${this.API_URL}/verify-otp`, data).pipe(
+    return this.http.post<AuthResponse>(`${this.AUTH_URL}/verify-otp`, data).pipe(
       tap((response) => {
         this.showSuccessMessage('Email verified successfully!');
         // Store auth data
@@ -174,7 +176,7 @@ export class AuthService {
 
   login(credentials: LoginCredentials): Observable<AuthResponse> {
     this.setLoading(true);
-    return this.http.post<AuthResponse>(`${this.API_URL}/login`, credentials).pipe(
+    return this.http.post<AuthResponse>(`${this.AUTH_URL}/login`, credentials).pipe(
       tap((response: AuthResponse) => {
         this.handleAuthSuccess(response, credentials.rememberMe);
         this.authState.next({
@@ -230,7 +232,7 @@ export class AuthService {
 
   forgotPassword(email: string): Observable<OtpResponse> {
     this.setLoading(true);
-    return this.http.post<OtpResponse>(`${this.API_URL}/forgot-password`, { email }).pipe(
+    return this.http.post<OtpResponse>(`${this.AUTH_URL}/forgot-password`, { email }).pipe(
       tap(() => {
         this.showSuccessMessage('Password reset instructions sent to your email.');
       }),
@@ -241,7 +243,7 @@ export class AuthService {
 
   resetPassword(data: ResetPasswordData): Observable<{ message: string }> {
     this.setLoading(true);
-    return this.http.post<{ message: string }>(`${this.API_URL}/reset-password`, {
+    return this.http.post<{ message: string }>(`${this.AUTH_URL}/reset-password`, {
       email: data.email,
       code: data.code,
       newPassword: data.newPassword
@@ -261,7 +263,7 @@ export class AuthService {
       return throwError(() => new Error('No refresh token available'));
     }
 
-    return this.http.post<AuthResponse>(`${this.API_URL}/refresh-token`, { refreshToken }).pipe(
+    return this.http.post<AuthResponse>(`${this.AUTH_URL}/refresh-token`, { refreshToken }).pipe(
       tap((response) => {
         this.handleAuthSuccess(response, localStorage.getItem(this.REMEMBER_ME_KEY) === 'true');
       }),
@@ -274,7 +276,7 @@ export class AuthService {
 
   resendOtp(email: string): Observable<OtpResponse> {
     this.setLoading(true);
-    return this.http.post<OtpResponse>(`${this.API_URL}/resend-otp`, { email }).pipe(
+    return this.http.post<OtpResponse>(`${this.AUTH_URL}/resend-otp`, { email }).pipe(
       tap(() => {
         this.showSuccessMessage('Verification code resent successfully.');
       }),
@@ -323,11 +325,19 @@ export class AuthService {
   }
 
   getCurrentUser(): Observable<any> {
-    return this.http.get(`${this.API_URL}/me`);
+    const token = this.getToken();
+    if (!token) {
+      return throwError(() => new Error('No authentication token found'));
+    }
+
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+    return this.http.get(`${this.USERS_URL}/me`, { headers }).pipe(
+      catchError(this.handleError.bind(this))
+    );
   }
 
   becomeAuthor(): Observable<any> {
-    return this.http.post(`${this.API_URL}/become-author`, {});
+    return this.http.post(`${this.AUTH_URL}/become-author`, {});
   }
 
   hasRole(role: string): boolean {
@@ -401,7 +411,7 @@ export class AuthService {
       'Authorization': `Bearer ${token}`
     });
 
-    return this.http.get(`${this.API_URL}/verify`, { headers }).pipe(
+    return this.http.get(`${this.AUTH_URL}/verify`, { headers }).pipe(
       catchError(error => {
         if (error.status === 401 || error.status === 403) {
           return throwError(() => new Error('Invalid or expired token'));
@@ -422,5 +432,25 @@ export class AuthService {
 
   getToken(): string | null {
     return localStorage.getItem(this.TOKEN_KEY);
+  }
+
+  updateProfile(userData: Partial<User>): Observable<User> {
+    const token = this.getToken();
+    if (!token) {
+      return throwError(() => new Error('No authentication token found'));
+    }
+
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+    return this.http.put<User>(`${this.USERS_URL}/me`, userData, { headers }).pipe(
+      tap(user => {
+        const currentState = this.authState.value;
+        this.authState.next({
+          ...currentState,
+          user: { ...currentState.user, ...user }
+        });
+        localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+      }),
+      catchError(this.handleError.bind(this))
+    );
   }
 }
