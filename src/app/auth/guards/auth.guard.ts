@@ -19,16 +19,12 @@ export class AuthGuard implements CanActivate {
   ): Observable<boolean> {
     return this.authService.getAuthState().pipe(
       take(1),
-      tap(authState => {
-        console.log('AuthGuard - Auth State:', authState);
-      }),
       map(authState => {
         if (authState.isAuthenticated) {
-          console.log('AuthGuard - User is authenticated');
           return true;
         }
 
-        console.log('AuthGuard - User is not authenticated, redirecting to login');
+        // If not authenticated, redirect to login
         this.router.navigate(['/auth/login'], {
           queryParams: { returnUrl: state.url }
         });

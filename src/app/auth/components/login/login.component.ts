@@ -70,7 +70,7 @@ export class LoginComponent implements OnInit {
       
       this.authService.login(credentials).subscribe({
         next: () => {
-          this.router.navigateByUrl(this.returnUrl);
+          this.router.navigate(['/dashboard']);
         },
         error: (error: string) => {
           this.loading = false;
