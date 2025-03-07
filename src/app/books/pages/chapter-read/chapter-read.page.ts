@@ -11,6 +11,11 @@ import { ErrorMessageComponent } from '../../../shared/components/error-message/
 import { BookService } from '../../services/book.service';
 import { AuthService } from '../../../auth/services/auth.service';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { ChapterService } from '../../services/chapter.service';
+import { Comment } from '../../models/comment.interface';
+import { finalize } from 'rxjs/operators';
+
+const DEFAULT_AVATAR = 'assets/images/default-avatar.png';
 
 @Component({
   selector: 'app-chapter-read',
@@ -85,7 +90,10 @@ import { MatTooltipModule } from '@angular/material/tooltip';
         <div class="comments-content">
           <div class="comment-form" *ngIf="isAuthenticated">
             <div class="input-wrapper">
-              <img [src]="currentUserAvatar" [alt]="currentUserName" class="user-avatar">
+              <img [src]="currentUserAvatar || DEFAULT_AVATAR" 
+                   [alt]="currentUserName"
+                   (error)="onImageError($event)" 
+                   class="user-avatar">
               <input type="text" 
                 [(ngModel)]="newComment" 
                 placeholder="Add a comment..."
@@ -102,7 +110,10 @@ import { MatTooltipModule } from '@angular/material/tooltip';
             <div class="comment-card" *ngFor="let comment of comments">
               <div class="comment-header">
                 <div class="user-info">
-                  <img [src]="comment.userAvatar" [alt]="comment.userFullName" class="user-avatar">
+                  <img [src]="comment.userAvatar || DEFAULT_AVATAR" 
+                       [alt]="comment.userFullName"
+                       (error)="onImageError($event)" 
+                       class="user-avatar">
                   <div class="text-content">
                     <span class="username">{{ comment.userFullName }}</span>
                     <span class="comment-text">{{ comment.content }}</span>
@@ -124,14 +135,21 @@ import { MatTooltipModule } from '@angular/material/tooltip';
               <!-- Reply form -->
               <div class="reply-form" *ngIf="replyingTo === comment.id">
                 <div class="input-wrapper">
+                  <img [src]="currentUserAvatar || DEFAULT_AVATAR" 
+                       [alt]="currentUserName"
+                       (error)="onImageError($event)" 
+                       class="user-avatar">
                   <input type="text" 
                     [(ngModel)]="replyContent" 
-                    placeholder="Reply to {{ comment.userFullName }}..."
+                    placeholder="Write a reply..."
                     (keyup.enter)="addReply(comment.id)">
-                  <button 
+                  <button class="post-button" 
                     [disabled]="!replyContent.trim()"
                     (click)="addReply(comment.id)">
-                    Post
+                    Reply
+                  </button>
+                  <button class="cancel-button" (click)="cancelReply()">
+                    Cancel
                   </button>
                 </div>
               </div>
@@ -146,7 +164,10 @@ import { MatTooltipModule } from '@angular/material/tooltip';
                 <div class="replies-list" *ngIf="comment.showReplies">
                   <div class="reply-card" *ngFor="let reply of comment.replies">
                     <div class="user-info">
-                      <img [src]="reply.userAvatar" [alt]="reply.userFullName" class="user-avatar">
+                      <img [src]="reply.userAvatar || DEFAULT_AVATAR" 
+                           [alt]="reply.userFullName"
+                           (error)="onImageError($event)" 
+                           class="user-avatar">
                       <div class="text-content">
                         <span class="username">{{ reply.userFullName }}</span>
                         <span class="comment-text">{{ reply.content }}</span>
@@ -673,6 +694,113 @@ import { MatTooltipModule } from '@angular/material/tooltip';
         right: -100%;
       }
     }
+
+    .reply-card {
+      padding: 12px 0;
+      border-bottom: 1px solid #efefef;
+
+      .user-info {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+
+        .user-avatar {
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          object-fit: cover;
+        }
+
+        .text-content {
+          flex: 1;
+
+          .username {
+            font-weight: 600;
+            font-size: 13px;
+            margin-right: 8px;
+          }
+
+          .comment-text {
+            color: #262626;
+            font-size: 13px;
+          }
+        }
+      }
+
+      .reply-metadata {
+        margin-left: 36px;
+        margin-top: 4px;
+        font-size: 12px;
+        color: #8e8e8e;
+        display: flex;
+        gap: 12px;
+      }
+    }
+
+    .reply-form {
+      margin: 12px 0;
+      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 8px;
+
+      .input-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        .user-avatar {
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          object-fit: cover;
+        }
+
+        input {
+          flex: 1;
+          border: 1px solid #dee2e6;
+          border-radius: 4px;
+          background: white;
+          padding: 8px 12px;
+          font-size: 13px;
+
+          &:focus {
+            outline: none;
+            border-color: #adb5bd;
+          }
+
+          &::placeholder {
+            color: #8e8e8e;
+          }
+        }
+
+        .post-button {
+          color: #0095f6;
+          font-weight: 600;
+          font-size: 13px;
+          background: none;
+          border: none;
+          padding: 0 12px;
+          cursor: pointer;
+
+          &:disabled {
+            opacity: 0.3;
+          }
+        }
+
+        .cancel-button {
+          color: #8e8e8e;
+          font-size: 13px;
+          background: none;
+          border: none;
+          padding: 0 12px;
+          cursor: pointer;
+
+          &:hover {
+            color: #262626;
+          }
+        }
+      }
+    }
   `]
 })
 export class ChapterReadPage implements OnInit {
@@ -696,11 +824,13 @@ export class ChapterReadPage implements OnInit {
   showSelectionMenu = false;
   showSnackbar = false;
   savedSelections: { [key: string]: boolean } = {};
+  protected readonly DEFAULT_AVATAR = DEFAULT_AVATAR;
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private bookService: BookService,
+    private chapterService: ChapterService,
     private authService: AuthService
   ) {}
 
@@ -757,17 +887,54 @@ export class ChapterReadPage implements OnInit {
   }
 
   loadComments(chapterId: number) {
-    this.bookService.getChapterComments(chapterId).subscribe({
-      next: (response: Comment[]) => {
-        this.comments = response.map(comment => ({
-          ...comment,
-          showReplies: false
-        }));
-      },
-      error: (err) => {
-        console.error('Failed to load comments:', err);
-      }
-    });
+    this.loading = true;
+    this.chapterService.getChapterComments(chapterId)
+      .pipe(
+        finalize(() => this.loading = false)
+      )
+      .subscribe({
+        next: (comments) => {
+          // Separate root comments and replies
+          const rootComments: Comment[] = [];
+          const replies: Comment[] = [];
+          
+          comments.forEach(comment => {
+            if (comment.parentCommentId) {
+              replies.push(comment);
+            } else {
+              rootComments.push({...comment, replies: [], showReplies: false});
+            }
+          });
+
+          // Attach replies to their parent comments
+          replies.forEach(reply => {
+            const parentComment = rootComments.find(c => c.id === reply.parentCommentId);
+            if (parentComment) {
+              parentComment.replies = parentComment.replies || [];
+              parentComment.replies.push(reply);
+            }
+          });
+
+          // Sort comments and replies by creation date if needed
+          rootComments.sort((a, b) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+
+          rootComments.forEach(comment => {
+            if (comment.replies) {
+              comment.replies.sort((a, b) => 
+                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+              );
+            }
+          });
+
+          this.comments = rootComments;
+        },
+        error: (error) => {
+          console.error('Failed to load comments:', error);
+          this.error = 'Failed to load comments';
+        }
+      });
   }
 
   hasReacted(type: string): boolean {
@@ -819,23 +986,58 @@ export class ChapterReadPage implements OnInit {
     this.isCommentsPanelOpen = !this.isCommentsPanelOpen;
   }
 
-  addComment() {
-    if (!this.newComment.trim() || !this.isAuthenticated || !this.chapter?.id) {
+  addComment(content?: string, parentCommentId?: number) {
+    // If no content is provided, use the newComment field
+    const commentContent = content || this.newComment;
+    
+    if (!commentContent.trim() || !this.isAuthenticated || !this.chapter?.id) {
       return;
     }
 
-    this.bookService.addComment(this.chapter.id, this.newComment).subscribe({
-      next: (response: Comment) => {
-        this.comments.unshift({
-          ...response,
-          showReplies: false
-        });
-        this.newComment = '';
-      },
-      error: (err) => {
-        console.error('Failed to add comment:', err);
+    this.loading = true;
+    this.chapterService.addComment(this.chapter.id, commentContent, parentCommentId)
+      .pipe(
+        finalize(() => {
+          this.loading = false;
+          if (!parentCommentId) {
+            this.newComment = ''; // Only clear if it's a root comment
+          }
+        })
+      )
+      .subscribe({
+        next: (comment) => {
+          if (parentCommentId) {
+            // If it's a reply, find the parent comment and add to its replies
+            const parentComment = this.findCommentById(this.comments, parentCommentId);
+            if (parentComment) {
+              parentComment.replies = parentComment.replies || [];
+              parentComment.replies.unshift(comment);
+            }
+          } else {
+            // If it's a root comment, add to the main comments array
+            this.comments.unshift(comment);
+          }
+        },
+        error: (error) => {
+          console.error('Failed to add comment:', error);
+          this.error = 'Failed to add comment';
+        }
+      });
+  }
+
+  private findCommentById(comments: Comment[], id: number): Comment | null {
+    for (const comment of comments) {
+      if (comment.id === id) {
+        return comment;
       }
-    });
+      if (comment.replies) {
+        const found = this.findCommentById(comment.replies, id);
+        if (found) {
+          return found;
+        }
+      }
+    }
+    return null;
   }
 
   toggleReply(commentId: number) {
@@ -848,41 +1050,39 @@ export class ChapterReadPage implements OnInit {
     this.replyContent = '';
   }
 
-  addReply(commentId: number) {
-    if (!this.replyContent.trim() || !this.isAuthenticated || !this.chapter?.id) {
+  addReply(parentCommentId: number) {
+    if (!this.replyContent?.trim() || !this.isAuthenticated || !this.chapter?.id) {
       return;
     }
 
-    this.bookService.addCommentReply(
-      this.chapter.id,
-      commentId,
-      this.replyContent
-    ).subscribe({
-      next: (response: Comment) => {
-        this.updateCommentsWithReply(commentId, {
-          ...response,
-          showReplies: false
-        });
-        this.cancelReply();
-      },
-      error: (err) => {
-        console.error('Failed to add reply:', err);
-      }
-    });
-  }
-
-  private updateCommentsWithReply(commentId: number, reply: Comment) {
-    const comment = this.comments.find(c => c.id === commentId);
-    if (comment) {
-      if (!comment.replies) comment.replies = [];
-      comment.replies.push(reply);
-    }
+    this.loading = true;
+    this.chapterService.addCommentReply(this.chapter.id, parentCommentId, this.replyContent)
+      .pipe(
+        finalize(() => {
+          this.loading = false;
+          this.replyContent = '';
+          this.replyingTo = null;
+        })
+      )
+      .subscribe({
+        next: (comment) => {
+          const parentComment = this.findCommentById(this.comments, parentCommentId);
+          if (parentComment) {
+            parentComment.replies = parentComment.replies || [];
+            parentComment.replies.unshift(comment);
+          }
+        },
+        error: (error) => {
+          console.error('Failed to add reply:', error);
+          this.error = 'Failed to add reply';
+        }
+      });
   }
 
   likeComment(comment: Comment) {
     if (!this.isAuthenticated) return;
 
-    this.bookService.toggleCommentLike(comment.id).subscribe({
+    this.chapterService.toggleCommentLike(comment.id).subscribe({
       next: (response: { likesCount: number }) => {
         comment.isLiked = !comment.isLiked;
         comment.likesCount = response.likesCount;
@@ -1028,18 +1228,11 @@ export class ChapterReadPage implements OnInit {
 
     return textNodes;
   }
-}
 
-interface Comment {
-  id: number;
-  content: string;
-  createdAt: string;
-  userFullName: string;
-  userAvatar: string;
-  likesCount: number;
-  isLiked: boolean;
-  replies?: Comment[];
-  showReplies?: boolean;
+  onImageError(event: Event) {
+    const img = event.target as HTMLImageElement;
+    img.src = DEFAULT_AVATAR;
+  }
 }
 
 interface SavedSelection {
