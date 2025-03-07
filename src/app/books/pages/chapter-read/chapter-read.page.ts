@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -10,6 +10,7 @@ import { LoadingSpinnerComponent } from '../../../shared/components/loading-spin
 import { ErrorMessageComponent } from '../../../shared/components/error-message/error-message.component';
 import { BookService } from '../../services/book.service';
 import { AuthService } from '../../../auth/services/auth.service';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 @Component({
   selector: 'app-chapter-read',
@@ -23,7 +24,8 @@ import { AuthService } from '../../../auth/services/auth.service';
     FormsModule,
     SidebarComponent,
     LoadingSpinnerComponent,
-    ErrorMessageComponent
+    ErrorMessageComponent,
+    MatTooltipModule
   ],
   template: `
     <div class="app-container">
@@ -159,6 +161,30 @@ import { AuthService } from '../../../auth/services/auth.service';
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Selection Menu -->
+      <div class="selection-menu" 
+           *ngIf="showSelectionMenu"
+           [style.top]="selectionMenuPosition.top"
+           [style.left]="selectionMenuPosition.left">
+        <div class="menu-content">
+          <button mat-button class="menu-btn comment" (click)="addCommentToSelection()">
+            <mat-icon>comment</mat-icon>
+            <span>Comment</span>
+          </button>
+          <div class="divider"></div>
+          <button mat-button class="menu-btn save" (click)="saveSelection()">
+            <mat-icon>bookmark</mat-icon>
+            <span>Save</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Success Snackbar -->
+      <div class="snackbar" [class.show]="showSnackbar">
+        <mat-icon>check_circle</mat-icon>
+        <span>Phrase saved successfully!</span>
       </div>
     </div>
   `,
@@ -510,6 +536,117 @@ import { AuthService } from '../../../auth/services/auth.service';
       }
     }
 
+    .selection-menu {
+      position: absolute;
+      z-index: 1100;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      transform: translate(-50%, -130%);
+      animation: slideUp 0.2s ease;
+      border: 1px solid #eee;
+      overflow: hidden;
+
+      .menu-content {
+        display: flex;
+        align-items: center;
+
+        .menu-btn {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 16px;
+          border: none;
+          background: transparent;
+          color: #666;
+          transition: all 0.2s ease;
+          border-radius: 0;
+          min-width: 120px;
+
+          mat-icon {
+            font-size: 20px;
+            width: 20px;
+            height: 20px;
+          }
+
+          span {
+            font-weight: 500;
+          }
+
+          &:hover {
+            background: #f8f9fa;
+          }
+
+          &.comment:hover {
+            color: #1976d2;
+          }
+
+          &.save:hover {
+            color: #4caf50;
+          }
+        }
+
+        .divider {
+          width: 1px;
+          height: 24px;
+          background: #eee;
+        }
+      }
+    }
+
+    .snackbar {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #4caf50;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 1200;
+
+      &.show {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+      }
+
+      mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+      }
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translate(-50%, -120%);
+      }
+      to {
+        opacity: 1;
+        transform: translate(-50%, -130%);
+      }
+    }
+
+    .saved-phrase-wrapper {
+      background-color: rgba(33, 150, 243, 0.1);
+      border-bottom: 2px solid #2196F3;
+      padding: 2px 4px;
+      border-radius: 2px;
+      position: relative;
+      display: inline;
+    }
+
+    .chapter-content {
+      user-select: text;
+    }
+
     @media (max-width: 1200px) {
       .main-content {
         &.comments-open {
@@ -554,6 +691,11 @@ export class ChapterReadPage implements OnInit {
   prevChapterId: number | null = null;
   nextChapterId: number | null = null;
   isCommentsPanelOpen = false;
+  selectedText: Selection | null = null;
+  selectionMenuPosition = { top: '0', left: '0' };
+  showSelectionMenu = false;
+  showSnackbar = false;
+  savedSelections: { [key: string]: boolean } = {};
 
   constructor(
     private route: ActivatedRoute,
@@ -585,6 +727,9 @@ export class ChapterReadPage implements OnInit {
     if (chapterId) {
       this.loadChapterInfo(+chapterId);
     }
+
+    // Load saved selections
+    this.loadSavedSelections();
   }
 
   loadChapterInfo(chapterId: number) {
@@ -598,6 +743,10 @@ export class ChapterReadPage implements OnInit {
         this.setPrevNextChapters();
         this.loadComments(chapterId);
         this.loading = false;
+        // Load saved phrases after chapter content is loaded
+        setTimeout(() => {
+          this.loadSavedSelections();
+        }, 100);
       },
       error: (err) => {
         this.error = 'Failed to load chapter. Please try again.';
@@ -743,6 +892,142 @@ export class ChapterReadPage implements OnInit {
       }
     });
   }
+
+  @HostListener('window:mouseup', ['$event'])
+  onMouseUp(event: MouseEvent) {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed) {
+      this.showSelectionMenu = false;
+      return;
+    }
+
+    const selectedText = selection.toString().trim();
+    if (!selectedText || !this.isValidSelection(event)) {
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+
+    this.selectedText = {
+      text: selectedText,
+      startOffset: range.startOffset,
+      endOffset: range.endOffset
+    };
+
+    this.selectionMenuPosition = {
+      top: `${rect.top + window.scrollY - 10}px`,
+      left: `${rect.left + (rect.width / 2)}px`
+    };
+
+    this.showSelectionMenu = true;
+  }
+
+  private isValidSelection(event: MouseEvent): boolean {
+    const target = event.target as HTMLElement;
+    return target.closest('.chapter-content') !== null;
+  }
+
+  addCommentToSelection() {
+    if (!this.selectedText) return;
+    
+    this.isCommentsPanelOpen = true;
+    this.newComment = `"${this.selectedText.text}" - `;
+    // Focus the comment input
+    setTimeout(() => {
+      const commentInput = document.querySelector('.comment-form input') as HTMLInputElement;
+      if (commentInput) {
+        commentInput.focus();
+      }
+    }, 100);
+    this.showSelectionMenu = false;
+  }
+
+  saveSelection() {
+    if (!this.selectedText) return;
+    
+    const savedSelections = JSON.parse(localStorage.getItem('savedSelections') || '[]');
+    savedSelections.push({
+      ...this.selectedText,
+      chapterId: this.chapter.id,
+      bookId: this.bookId,
+      savedAt: new Date().toISOString()
+    });
+    localStorage.setItem('savedSelections', JSON.stringify(savedSelections));
+    
+    // Mark the newly saved phrase
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const wrapper = document.createElement('span');
+      wrapper.className = 'saved-phrase-wrapper';
+      wrapper.textContent = this.selectedText.text;
+      range.surroundContents(wrapper);
+    }
+
+    this.showSnackbar = true;
+    setTimeout(() => {
+      this.showSnackbar = false;
+    }, 3000);
+
+    this.showSelectionMenu = false;
+  }
+
+  isSavedText(text: string): boolean {
+    return this.savedSelections[text] || false;
+  }
+
+  loadSavedSelections() {
+    const saved = localStorage.getItem('savedSelections');
+    if (saved) {
+      const savedPhrases = JSON.parse(saved);
+      // After loading chapter content, mark saved phrases
+      setTimeout(() => {
+        this.markSavedPhrases(savedPhrases);
+      }, 100);
+    }
+  }
+
+  markSavedPhrases(savedPhrases: SavedSelection[]) {
+    const content = document.querySelector('.chapter-content');
+    if (!content) return;
+
+    savedPhrases.forEach(phrase => {
+      if (phrase.chapterId === this.chapter.id) {
+        const textNodes = this.findTextNodes(content);
+        textNodes.forEach(node => {
+          const text = node.textContent || '';
+          if (text.includes(phrase.text)) {
+            const wrapper = document.createElement('span');
+            wrapper.className = 'saved-phrase-wrapper';
+            wrapper.textContent = phrase.text;
+            const range = document.createRange();
+            range.setStart(node, text.indexOf(phrase.text));
+            range.setEnd(node, text.indexOf(phrase.text) + phrase.text.length);
+            range.surroundContents(wrapper);
+          }
+        });
+      }
+    });
+  }
+
+  // Helper method to find all text nodes
+  private findTextNodes(node: Node): Text[] {
+    const textNodes: Text[] = [];
+    const walk = document.createTreeWalker(
+      node,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+
+    let currentNode: Node | null = walk.nextNode();
+    while (currentNode) {
+      textNodes.push(currentNode as Text);
+      currentNode = walk.nextNode();
+    }
+
+    return textNodes;
+  }
 }
 
 interface Comment {
@@ -755,4 +1040,21 @@ interface Comment {
   isLiked: boolean;
   replies?: Comment[];
   showReplies?: boolean;
+}
+
+interface SavedSelection {
+  text: string;
+  startOffset: number;
+  endOffset: number;
+  chapterId: number;
+  bookId: number;
+  savedAt: string;
+  note?: string;
+}
+
+interface Selection {
+  text: string;
+  startOffset: number;
+  endOffset: number;
+  note?: string;
 } 

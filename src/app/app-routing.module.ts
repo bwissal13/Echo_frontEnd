@@ -68,6 +68,11 @@ export const routes: Routes = [
             path: 'chapter/:id',
             component: ChapterReadPage,
             canActivate: [AuthGuard]
+          },
+          {
+            path: 'saved-phrases',
+            loadComponent: () => import('./books/pages/saved-phrases/saved-phrases.page')
+              .then(m => m.SavedPhrasesPage)
           }
         ]
       }
