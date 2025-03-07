@@ -29,7 +29,7 @@ import { AuthService } from '../../../auth/services/auth.service';
     <div class="app-container">
       <app-sidebar></app-sidebar>
       
-      <div class="main-content">
+      <div class="main-content" [class.comments-open]="isCommentsPanelOpen">
         <app-loading-spinner *ngIf="loading"></app-loading-spinner>
         <app-error-message *ngIf="error" [message]="error"></app-error-message>
 
@@ -57,79 +57,102 @@ import { AuthService } from '../../../auth/services/auth.service';
                 <mat-icon>favorite</mat-icon>
                 <span>{{ chapter.reactions?.like || 0 }}</span>
               </button>
-              <button mat-icon-button (click)="scrollToComments()">
-                <mat-icon>comment</mat-icon>
-                <span>{{ chapter.comments?.length || 0 }}</span>
-              </button>
             </div>
           </div>
 
           <div class="chapter-content" [innerHTML]="chapter.content"></div>
+        </div>
+      </div>
 
-          <div class="comments-section" #commentsSection>
-            <h2>Comments</h2>
-            
-            <div class="comment-form" *ngIf="isAuthenticated">
-              <mat-form-field appearance="outline">
-                <textarea matInput 
-                  [(ngModel)]="newComment" 
-                  placeholder="Write a comment..."
-                  rows="3"></textarea>
-              </mat-form-field>
-              <button mat-raised-button 
-                color="primary" 
+      <!-- Floating Comments Button -->
+      <button mat-fab class="floating-comments-btn" (click)="toggleComments()">
+        <mat-icon>comment</mat-icon>
+        <span class="comment-count">{{ chapter?.comments?.length || 0 }}</span>
+      </button>
+
+      <!-- Comments Panel -->
+      <div class="comments-panel" [class.open]="isCommentsPanelOpen">
+        <div class="comments-header">
+          <h2>Comments</h2>
+          <button mat-icon-button (click)="toggleComments()">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+       
+        <div class="comments-content">
+          <div class="comment-form" *ngIf="isAuthenticated">
+            <div class="input-wrapper">
+              <img [src]="currentUserAvatar" [alt]="currentUserName" class="user-avatar">
+              <input type="text" 
+                [(ngModel)]="newComment" 
+                placeholder="Add a comment..."
+                (keyup.enter)="addComment()">
+              <button class="post-button" 
                 [disabled]="!newComment.trim()"
                 (click)="addComment()">
-                Post Comment
+                Post
               </button>
             </div>
+          </div>
 
-            <div class="comments-list">
-              <div class="comment-card" *ngFor="let comment of comments">
-                <div class="comment-header">
-                  <img [src]="comment.userAvatar" [alt]="comment.userFullName">
-                  <div class="comment-info">
+          <div class="comments-list">
+            <div class="comment-card" *ngFor="let comment of comments">
+              <div class="comment-header">
+                <div class="user-info">
+                  <img [src]="comment.userAvatar" [alt]="comment.userFullName" class="user-avatar">
+                  <div class="text-content">
                     <span class="username">{{ comment.userFullName }}</span>
-                    <span class="timestamp">{{ comment.createdAt | date:'medium' }}</span>
+                    <span class="comment-text">{{ comment.content }}</span>
                   </div>
                 </div>
-                <p class="comment-content">{{ comment.content }}</p>
                 <div class="comment-actions">
-                  <button mat-button (click)="toggleReply(comment.id)">
-                    Reply
+                  <button mat-icon-button (click)="likeComment(comment)" [class.liked]="comment.isLiked">
+                    <mat-icon>favorite</mat-icon>
                   </button>
                 </div>
+              </div>
 
-                <!-- Reply form -->
-                <div class="reply-form" *ngIf="replyingTo === comment.id">
-                  <mat-form-field appearance="outline">
-                    <textarea matInput 
-                      [(ngModel)]="replyContent" 
-                      placeholder="Write a reply..."
-                      rows="2"></textarea>
-                  </mat-form-field>
-                  <div class="reply-actions">
-                    <button mat-button (click)="cancelReply()">Cancel</button>
-                    <button mat-raised-button 
-                      color="primary" 
-                      [disabled]="!replyContent.trim()"
-                      (click)="addReply(comment.id)">
-                      Reply
-                    </button>
-                  </div>
+              <div class="comment-metadata">
+                <span>{{ comment.createdAt | date:'MMM d' }}</span>
+                <span>{{ comment.likesCount }} likes</span>
+                <button mat-button (click)="toggleReply(comment.id)">Reply</button>
+              </div>
+
+              <!-- Reply form -->
+              <div class="reply-form" *ngIf="replyingTo === comment.id">
+                <div class="input-wrapper">
+                  <input type="text" 
+                    [(ngModel)]="replyContent" 
+                    placeholder="Reply to {{ comment.userFullName }}..."
+                    (keyup.enter)="addReply(comment.id)">
+                  <button 
+                    [disabled]="!replyContent.trim()"
+                    (click)="addReply(comment.id)">
+                    Post
+                  </button>
                 </div>
+              </div>
 
-                <!-- Nested replies -->
-                <div class="replies" *ngIf="comment.replies?.length">
+              <!-- Replies -->
+              <div class="replies" *ngIf="comment.replies?.length">
+                <button mat-button class="view-replies" (click)="comment.showReplies = !comment.showReplies">
+                  <mat-icon>{{ comment.showReplies ? 'expand_less' : 'expand_more' }}</mat-icon>
+                  {{ comment.showReplies ? 'Hide' : 'View' }} {{ comment.replies?.length || 0 }} replies
+                </button>
+
+                <div class="replies-list" *ngIf="comment.showReplies">
                   <div class="reply-card" *ngFor="let reply of comment.replies">
-                    <div class="comment-header">
-                      <img [src]="reply.userAvatar" [alt]="reply.userFullName">
-                      <div class="comment-info">
+                    <div class="user-info">
+                      <img [src]="reply.userAvatar" [alt]="reply.userFullName" class="user-avatar">
+                      <div class="text-content">
                         <span class="username">{{ reply.userFullName }}</span>
-                        <span class="timestamp">{{ reply.createdAt | date:'medium' }}</span>
+                        <span class="comment-text">{{ reply.content }}</span>
                       </div>
                     </div>
-                    <p class="comment-content">{{ reply.content }}</p>
+                    <div class="reply-metadata">
+                      <span>{{ reply.createdAt | date:'MMM d' }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -149,17 +172,24 @@ import { AuthService } from '../../../auth/services/auth.service';
     .main-content {
       flex: 1;
       padding: 32px;
-      max-width: 800px;
+      max-width: 1200px;
       margin: 0 auto;
       width: 100%;
+      transition: all 0.3s ease;
+
+      &.comments-open {
+        margin-right: 480px;
+        max-width: calc(100% - 480px);
+      }
     }
 
     .chapter-container {
       background: white;
       border-radius: 12px;
-      padding: 32px;
+      padding: 48px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.05);
       border: 1px solid #eee;
+      transition: all 0.3s ease;
     }
 
     .chapter-header {
@@ -254,139 +284,256 @@ import { AuthService } from '../../../auth/services/auth.service';
       }
     }
 
-    .comments-section {
-      margin-top: 48px;
-      border-top: 2px solid #eee;
-      padding-top: 32px;
+    .floating-comments-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 100;
+      background: #1a1a1a;
+      color: white;
+
+      &:hover {
+        background: #333;
+      }
+
+      .comment-count {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: #666;
+        color: white;
+        border-radius: 12px;
+        padding: 2px 8px;
+        font-size: 12px;
+      }
+    }
+
+    .tab-navigation {
+      display: flex;
+      border-bottom: 1px solid #dee2e6;
+      margin-bottom: 20px;
+      padding: 0 24px;
+
+      .tab-button {
+        padding: 16px 0;
+        margin-right: 32px;
+        border: none;
+        background: none;
+        font-size: 16px;
+        color: #6c757d;
+        position: relative;
+        cursor: pointer;
+
+        &.active {
+          color: #212529;
+          font-weight: 500;
+
+          &:after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #212529;
+          }
+        }
+      }
+    }
+
+    .comments-panel {
+      position: fixed;
+      top: 0;
+      right: -480px;
+      width: 480px;
+      height: 100vh;
+      background: white;
+      box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+      transition: right 0.3s ease;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+
+      &.open {
+        right: 0;
+      }
+    }
+
+    .comments-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid #dee2e6;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
 
       h2 {
-        font-size: 24px;
-        font-weight: 600;
-        margin-bottom: 24px;
-        color: #1a1a1a;
+        margin: 0;
+        font-size: 20px;
+        font-weight: 500;
       }
+    }
+
+    .comments-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 24px;
     }
 
     .comment-form {
-      margin-bottom: 32px;
+      padding: 16px 0;
+      border-bottom: 1px solid #efefef;
 
-      mat-form-field {
-        width: 100%;
-        margin-bottom: 16px;
-      }
-
-      button {
-        float: right;
-      }
-    }
-
-    .comment-card {
-      background: #f8f9fa;
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 20px;
-      border: 1px solid #eee;
-
-      .comment-header {
+      .input-wrapper {
         display: flex;
         align-items: center;
         gap: 12px;
-        margin-bottom: 12px;
 
-        img {
-          width: 40px;
-          height: 40px;
+        .user-avatar {
+          width: 32px;
+          height: 32px;
           border-radius: 50%;
           object-fit: cover;
         }
 
-        .comment-info {
-          .username {
-            font-weight: 500;
-            color: #1a1a1a;
-            display: block;
+        input {
+          flex: 1;
+          border: none;
+          background: none;
+          padding: 12px 0;
+          font-size: 14px;
+
+          &:focus {
+            outline: none;
           }
 
-          .timestamp {
-            font-size: 12px;
-            color: #666;
+          &::placeholder {
+            color: #8e8e8e;
+          }
+        }
+
+        .post-button {
+          color: #0095f6;
+          font-weight: 600;
+          background: none;
+          border: none;
+          padding: 0;
+          cursor: pointer;
+
+          &:disabled {
+            opacity: 0.3;
+          }
+        }
+      }
+    }
+
+    .comment-card {
+      padding: 16px 0;
+      border-bottom: 1px solid #efefef;
+
+      .comment-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+
+        .user-info {
+          display: flex;
+          gap: 12px;
+          flex: 1;
+
+          .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+          }
+
+          .text-content {
+            .username {
+              font-weight: 600;
+              margin-right: 8px;
+            }
+
+            .comment-text {
+              color: #262626;
+            }
+          }
+        }
+
+        .comment-actions {
+          .liked {
+            color: #ed4956;
           }
         }
       }
 
-      .comment-content {
-        font-size: 15px;
-        line-height: 1.6;
-        color: #333;
-        margin-bottom: 12px;
+      .comment-metadata {
+        margin-left: 44px;
+        margin-top: 4px;
+        font-size: 12px;
+        color: #8e8e8e;
+
+        > * {
+          margin-right: 12px;
+        }
+
+        button {
+          padding: 0;
+          min-width: 0;
+          font-weight: 600;
+          font-size: 12px;
+          color: #8e8e8e;
+          text-transform: none;
+        }
       }
-    }
 
-    .reply-form {
-      margin: 16px 0;
-      padding-left: 52px;
-
-      mat-form-field {
-        width: 100%;
-      }
-
-      .reply-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 8px;
+      .replies {
+        margin-left: 44px;
         margin-top: 8px;
+
+        .view-replies {
+          color: #8e8e8e;
+          font-size: 12px;
+          padding: 0;
+          text-transform: none;
+          
+          mat-icon {
+            font-size: 16px;
+            width: 16px;
+            height: 16px;
+            margin-right: 4px;
+          }
+        }
+
+        .replies-list {
+          margin-top: 8px;
+        }
       }
     }
 
-    .replies {
-      margin-top: 16px;
-      padding-left: 52px;
+    @media (max-width: 1200px) {
+      .main-content {
+        &.comments-open {
+          margin-right: 380px;
+          max-width: calc(100% - 380px);
+        }
+      }
 
-      .reply-card {
-        background: white;
-        border-radius: 8px;
-        padding: 16px;
-        margin-bottom: 12px;
-        border: 1px solid #eee;
+      .comments-panel {
+        width: 380px;
       }
     }
 
     @media (max-width: 768px) {
       .main-content {
-        padding: 16px;
-      }
-
-      .chapter-container {
-        padding: 20px;
-        border-radius: 8px;
-      }
-
-      .chapter-header {
-        .navigation {
-          flex-wrap: wrap;
-          
-          button {
-            flex: 1;
-            min-width: 0;
-            padding: 8px;
-            
-            span {
-              display: none;
-            }
-          }
-        }
-
-        h1 {
-          font-size: 24px;
+        &.comments-open {
+          margin-right: 0;
+          max-width: 100%;
         }
       }
 
-      .chapter-content {
-        font-size: 16px;
-      }
-
-      .replies {
-        padding-left: 24px;
+      .comments-panel {
+        width: 100%;
+        right: -100%;
       }
     }
   `]
@@ -406,6 +553,7 @@ export class ChapterReadPage implements OnInit {
   currentUserName = 'Anonymous';
   prevChapterId: number | null = null;
   nextChapterId: number | null = null;
+  isCommentsPanelOpen = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -518,8 +666,8 @@ export class ChapterReadPage implements OnInit {
     }
   }
 
-  scrollToComments() {
-    document.querySelector('.comments-section')?.scrollIntoView({ behavior: 'smooth' });
+  toggleComments() {
+    this.isCommentsPanelOpen = !this.isCommentsPanelOpen;
   }
 
   addComment() {
