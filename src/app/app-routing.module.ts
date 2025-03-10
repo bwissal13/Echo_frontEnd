@@ -81,6 +81,10 @@ export const routes: Routes = [
         path: 'profile',
         component: ProfileComponent,
         canActivate: [AuthGuard]
+      },
+      {
+        path: 'authors',
+        loadChildren: () => import('./authors/authors.module').then(m => m.AuthorsModule)
       }
     ]
   },

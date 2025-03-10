@@ -1,0 +1,78 @@
+<div class="authors-container">
+  <app-sidebar></app-sidebar>
+  <div class="main-content">
+    <div class="authors-header">
+      <h1>Authors</h1>
+      <app-search-bar [formControl]="searchControl"></app-search-bar>
+    </div>
+
+    <div class="authors-content">
+      <div class="loading-spinner" *ngIf="loading">
+        <mat-spinner diameter="40"></mat-spinner>
+      </div>
+
+      <ul class="authors-grid" *ngIf="!loading">
+        <li class="author-card" *ngFor="let author of authors">
+          <div class="author-header">
+            <!-- <img [src]="author.profilePicture || 'assets/images/default-avatar.png'"
+                 [alt]="author.firstname + ' ' + author.lastname"
+                 class="author-avatar"> -->
+                 <div class="author-name" >{{author.firstname}} {{author.lastname}}</div>
+            <button mat-stroked-button 
+                    class="follow-btn" 
+                    [class.following]="author.isFollowing"
+                    (click)="followAuthor(author.id, $event)">
+              <mat-icon>{{ author.isFollowing ? 'done' : 'person_add' }}</mat-icon>
+              <span class="follow-text">{{ author.isFollowing ? 'Following' : 'Follow' }}</span>
+              <span class="unfollow-text">Unfollow</span>
+            </button>
+          </div>
+          
+          <div class="author-content" [routerLink]="['/authors', author.id]">
+           
+            <div class="author-stats">
+              <div class="stat">
+                <div class="value">{{author.totalBooks}}</div>
+                <div class="label">{{author.totalBooks === 1 ? 'Book' : 'Books'}}</div>
+              </div>
+              <div class="stat">
+                <div class="value">{{author.totalFollowers}}</div>
+                <div class="label">Followers</div>
+              </div>
+            </div>
+
+            <div class="books-preview" *ngIf="author.books?.length">
+              <h4>Recent Books</h4>
+              <div class="books-grid">
+                <div class="book-item" 
+                     *ngFor="let book of author.books?.slice(0, 3)"
+                     [routerLink]="['/books', 'public', book.id]"
+                     (click)="$event.stopPropagation()">
+                  <img [src]="book.coverImage || 'assets/images/default-book-cover.jpg'" 
+                       [alt]="book.title">
+                  <div class="book-info">
+                    <span class="book-title">{{ book.title }}</span>
+                    <small class="book-date">{{ book.publishedAt | date:'mediumDate' }}</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </li>
+      </ul>
+
+      <mat-paginator [length]="totalElements"
+                     [pageSize]="pageSize"
+                     [pageIndex]="pageIndex"
+                     [pageSizeOptions]="[8, 16, 24, 32]"
+                     (page)="onPageChange($event)"
+                     *ngIf="!loading && authors.length > 0">
+      </mat-paginator>
+
+      <div class="no-results" *ngIf="!loading && authors.length === 0">
+        <mat-icon>search_off</mat-icon>
+        <p>No authors found</p>
+      </div>
+    </div>
+  </div>
+</div> 
