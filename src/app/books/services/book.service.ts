@@ -77,22 +77,36 @@ export class BookService {
       );
   }
 
-  getMyBooks(page: number = 0, size: number = 12): Observable<BookPage> {
-    const params = new HttpParams()
-      .set('page', page.toString())
-      .set('size', size.toString())
-      .set('sort', 'updatedAt,desc');
-
-    return this.http.get<BookPage>(`${this.API_URL}/me`, { 
-      headers: this.getHeaders(),
-      params 
-    }).pipe(
-      tap(response => console.log('My books response:', response)),
-      catchError(error => {
-        console.error('Error fetching my books:', error);
-        return throwError(() => new Error('Failed to fetch your books'));
-      })
-    );
+  getMyBooks(page: number = 0, size: number = 12, search: string = ''): Observable<BookPage> {
+    // If there's no search term, use the regular endpoint
+    if (!search || search.trim() === '') {
+      let params = new HttpParams()
+        .set('page', page.toString())
+        .set('size', size.toString())
+        .set('sort', 'updatedAt,desc');
+      
+      return this.http.get<BookPage>(`${this.API_URL}/me`, { 
+        headers: this.getHeaders(),
+        params 
+      }).pipe(
+        tap(response => console.log('My books response:', response)),
+        catchError(error => {
+          console.error('Error fetching my books:', error);
+          return throwError(() => new Error('Failed to fetch your books'));
+        })
+      );
+    } 
+    // If there is a search term, use the existing searchBooks method
+    else {
+      console.log('Using existing search endpoint with query:', search.trim());
+      // Pass the size parameter directly rather than using this.pageSize
+      return this.searchBooks(search.trim(), page, size).pipe(
+        catchError(error => {
+          console.error('Error searching books:', error);
+          return throwError(() => new Error('Failed to search your books'));
+        })
+      );
+    }
   }
 
   getPublicBooks(page: number, size: number, filter: string, search: string): Observable<PageResponse<any>> {
@@ -117,13 +131,28 @@ export class BookService {
     );
   }
 
-  searchBooks(query: string, page: number = 0, size: number = 10): Observable<BookPage> {
-    const params = new HttpParams()
-      .set('query', query)
+  searchBooks(query: string, page: number = 0, size: number = 10, authorId?: number): Observable<BookPage> {
+    let params = new HttpParams()
+      .set('search', query)
       .set('page', page.toString())
       .set('size', size.toString());
+    
+    // If authorId is provided, only search books by that author
+    if (authorId) {
+      params = params.set('authorId', authorId.toString());
+    }
 
-    return this.http.get<BookPage>(`${this.API_URL}/search`, { params });
+    // Use the main books endpoint instead of a dedicated search endpoint
+    return this.http.get<BookPage>(`${this.API_URL}`, { 
+      params,
+      headers: this.getHeaders() 
+    }).pipe(
+      tap(response => console.log('Search results:', response)),
+      catchError(error => {
+        console.error('Error searching books:', error);
+        return throwError(() => new Error('Failed to search books'));
+      })
+    );
   }
 
   createBook(book: CreateBookRequest): Observable<Book> {

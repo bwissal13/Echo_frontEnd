@@ -50,6 +50,7 @@ export class BookListComponent implements OnInit {
   pageSize = 12;
   totalBooks = 0;
   pageSizeOptions = [12, 24, 36, 48];
+  searchQuery = '';
 
   private readonly API_URL = 'http://localhost:8080';
 
@@ -67,19 +68,56 @@ export class BookListComponent implements OnInit {
     this.loading = true;
     this.error = null;
 
-    this.bookService.getMyBooks(this.currentPage, this.pageSize).subscribe({
-      next: (response) => {
-        console.log('Books loaded:', response);
-        this.books = response.content;
-        this.totalBooks = response.totalElements;
-        this.loading = false;
+    // Get current user from Auth Service
+    this.authService.getCurrentUser().subscribe({
+      next: (user) => {
+        const userId = user?.id;
+        
+        if (this.searchQuery && this.searchQuery.trim() !== '') {
+          // If searching, use searchBooks with user ID
+          this.bookService.searchBooks(this.searchQuery, this.currentPage, this.pageSize, userId).subscribe({
+            next: (response) => {
+              console.log('Books searched:', response);
+              this.books = response.content;
+              this.totalBooks = response.totalElements;
+              this.loading = false;
+            },
+            error: (error) => {
+              console.error('Error searching books:', error);
+              this.error = error.message || 'Failed to search books';
+              this.loading = false;
+            }
+          });
+        } else {
+          // Otherwise use the regular getMyBooks endpoint
+          this.bookService.getMyBooks(this.currentPage, this.pageSize).subscribe({
+            next: (response) => {
+              console.log('Books loaded:', response);
+              this.books = response.content;
+              this.totalBooks = response.totalElements;
+              this.loading = false;
+            },
+            error: (error) => {
+              console.error('Error loading books:', error);
+              this.error = error.message || 'Failed to load books';
+              this.loading = false;
+            }
+          });
+        }
       },
       error: (error) => {
-        console.error('Error loading books:', error);
-        this.error = error.message || 'Failed to load books';
+        console.error('Error getting current user:', error);
+        this.error = 'Failed to authenticate user';
         this.loading = false;
       }
     });
+  }
+
+  onSearch(query: string) {
+    console.log('Search initiated with query:', query);
+    this.searchQuery = query;
+    this.currentPage = 0;
+    this.loadBooks();
   }
 
   onPageChange(event: PageEvent) {

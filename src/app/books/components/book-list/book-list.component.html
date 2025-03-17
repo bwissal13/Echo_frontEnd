@@ -9,7 +9,7 @@
         <app-back-button></app-back-button>
         <h1>My Books</h1>
       </div>
-      <app-search-bar></app-search-bar>
+      <app-search-bar (search)="onSearch($event)"></app-search-bar>
     </div>
 
     <!-- Loading spinner -->
