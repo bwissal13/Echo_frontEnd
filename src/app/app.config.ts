@@ -5,6 +5,7 @@ import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { MatDialogModule } from '@angular/material/dialog';
 import { rateLimitInterceptor } from './shared/interceptors/rate-limit.interceptor';
+import { AdminRoutingModule } from './admin/admin-routing.module';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -14,7 +15,8 @@ export const appConfig: ApplicationConfig = {
       withInterceptors([rateLimitInterceptor])
     ),
     importProvidersFrom(
-      MatDialogModule
+      MatDialogModule,
+      AdminRoutingModule
     )
   ]
 };

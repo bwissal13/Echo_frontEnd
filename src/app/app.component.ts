@@ -28,10 +28,8 @@ export class AppComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    // Check if user is authenticated
-    if (!this.authService.isAuthenticated()) {
-      this.router.navigate(['/auth/login']);
-    }
+    // Remove the automatic redirect to login
+    // We'll let the auth guard handle protected routes instead
   }
 
   isAuthRoute(): boolean {

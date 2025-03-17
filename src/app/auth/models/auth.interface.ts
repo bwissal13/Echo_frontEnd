@@ -71,7 +71,7 @@ export interface OtpResponse {
 }
 
 export interface RoleChangeRequest {
-  requestedRole: string;
+  requestedRole: Role;
   reason: string;
 }
 

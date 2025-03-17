@@ -33,6 +33,30 @@
         <mat-icon>bookmark</mat-icon>
         <span *ngIf="isExpanded$ | async">Saved Phrases</span>
       </a>
+      <a routerLink="/role-request" class="menu-item" routerLinkActive="active">
+        <mat-icon>upgrade</mat-icon>
+        <span *ngIf="isExpanded$ | async">Request Role Change</span>
+      </a>
+
+      <!-- Admin Section -->
+      <ng-container *ngIf="isAdmin">
+        <div class="menu-divider" *ngIf="isExpanded$ | async">Admin</div>
+        
+        <a routerLink="/admin/dashboard" class="menu-item" routerLinkActive="active">
+          <mat-icon>admin_panel_settings</mat-icon>
+          <span *ngIf="isExpanded$ | async">Admin Dashboard</span>
+        </a>
+        
+        <a routerLink="/admin/users" class="menu-item" routerLinkActive="active">
+          <mat-icon>manage_accounts</mat-icon>
+          <span *ngIf="isExpanded$ | async">User Management</span>
+        </a>
+        
+        <a routerLink="/admin/role-requests" class="menu-item" routerLinkActive="active">
+          <mat-icon>assignment_ind</mat-icon>
+          <span *ngIf="isExpanded$ | async">Role Requests</span>
+        </a>
+      </ng-container>
     </ng-container>
   </div>
 

@@ -14,7 +14,8 @@ import {
   ResetPasswordData,
   OtpResponse,
   RoleChangeRequest,
-  RoleChangeResponse
+  RoleChangeResponse,
+  Role
 } from '../models/auth.interface';
 import { ApiError } from '../models/api-error.interface';
 import { Router } from '@angular/router';
@@ -60,20 +61,18 @@ export class AuthService {
 
   private initializeAuth(): void {
     const token = localStorage.getItem(this.TOKEN_KEY);
-    const user = localStorage.getItem(this.USER_KEY);
-    const expiry = localStorage.getItem(this.TOKEN_EXPIRY_KEY);
-
-    if (token && user && expiry) {
-      const expiryDate = new Date(expiry);
-      if (expiryDate > new Date()) {
+    const userStr = localStorage.getItem(this.USER_KEY);
+    
+    if (token && userStr) {
+      try {
+        const user = JSON.parse(userStr);
         this.authState.next({
           isAuthenticated: true,
-          user: JSON.parse(user),
+          user,
           loading: false,
           error: null
         });
-        this.setupAutoRefresh(expiryDate);
-      } else {
+      } catch {
         this.logout();
       }
     }
@@ -175,10 +174,13 @@ export class AuthService {
   }
 
   login(credentials: LoginCredentials): Observable<AuthResponse> {
-    this.setLoading(true);
+    this.authState.next({ ...this.authState.value, loading: true });
+    
     return this.http.post<AuthResponse>(`${this.AUTH_URL}/login`, credentials).pipe(
-      tap((response: AuthResponse) => {
-        this.handleAuthSuccess(response, credentials.rememberMe);
+      tap(response => {
+        localStorage.setItem(this.TOKEN_KEY, response.accessToken);
+        localStorage.setItem(this.USER_KEY, JSON.stringify(response.user));
+        
         this.authState.next({
           isAuthenticated: true,
           user: response.user,
@@ -186,48 +188,24 @@ export class AuthService {
           error: null
         });
       }),
-      catchError(this.handleError.bind(this)),
-      tap(() => this.setLoading(false))
+      catchError(this.handleError.bind(this))
     );
-  }
-
-  private handleAuthSuccess(response: AuthResponse, rememberMe: boolean): void {
-    const expiryDate = new Date();
-    expiryDate.setHours(expiryDate.getHours() + 24); // 24 hour expiry
-
-    localStorage.setItem(this.TOKEN_KEY, response.accessToken);
-    localStorage.setItem(this.USER_KEY, JSON.stringify(response.user));
-    localStorage.setItem(this.TOKEN_EXPIRY_KEY, expiryDate.toISOString());
-    localStorage.setItem(this.REMEMBER_ME_KEY, String(rememberMe));
-
-    this.authState.next({
-      isAuthenticated: true,
-      user: response.user,
-      loading: false,
-      error: null
-    });
-
-    this.setupAutoRefresh(expiryDate);
-    this.showSuccessMessage('Login successful!');
   }
 
   logout(): void {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
-    localStorage.removeItem(this.TOKEN_EXPIRY_KEY);
-    localStorage.removeItem(this.REMEMBER_ME_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
-    localStorage.removeItem(this.USER_ROLES_KEY);
-
+    localStorage.removeItem(this.TOKEN_EXPIRY_KEY);
+    
     this.authState.next({
       isAuthenticated: false,
       user: null,
       loading: false,
       error: null
     });
-
+    
     this.router.navigate(['/auth/login']);
-    this.isAuthenticatedSubject.next(false);
   }
 
   forgotPassword(email: string): Observable<OtpResponse> {
@@ -259,15 +237,24 @@ export class AuthService {
   refreshToken(): Observable<AuthResponse> {
     const refreshToken = localStorage.getItem(this.REFRESH_TOKEN_KEY);
     if (!refreshToken) {
-      this.logout();
-      return throwError(() => new Error('No refresh token available'));
+      return throwError(() => new Error('No refresh token found'));
     }
 
-    return this.http.post<AuthResponse>(`${this.AUTH_URL}/refresh-token`, { refreshToken }).pipe(
-      tap((response) => {
-        this.handleAuthSuccess(response, localStorage.getItem(this.REMEMBER_ME_KEY) === 'true');
+    return this.http.post<AuthResponse>(`${this.AUTH_URL}/refresh`, { refreshToken }).pipe(
+      tap(response => {
+        localStorage.setItem(this.TOKEN_KEY, response.accessToken);
+        if (response.user) {
+          localStorage.setItem(this.USER_KEY, JSON.stringify(response.user));
+        }
+        
+        this.authState.next({
+          isAuthenticated: true,
+          user: response.user,
+          loading: false,
+          error: null
+        });
       }),
-      catchError((error) => {
+      catchError(error => {
         this.logout();
         return throwError(() => error);
       })
@@ -340,10 +327,16 @@ export class AuthService {
     return this.http.post(`${this.AUTH_URL}/become-author`, {});
   }
 
-  hasRole(role: string): boolean {
-    const roles = localStorage.getItem(this.USER_ROLES_KEY);
-    if (!roles) return false;
-    return JSON.parse(roles).includes(role);
+  hasRole(roleToCheck: string): boolean {
+    const userStr = localStorage.getItem(this.USER_KEY);
+    if (!userStr) return false;
+    
+    try {
+      const user = JSON.parse(userStr);
+      return user?.role === roleToCheck;
+    } catch {
+      return false;
+    }
   }
 
   requestAuthorRole(reason: string): Observable<RoleChangeResponse> {
@@ -357,12 +350,12 @@ export class AuthService {
       .set('Content-Type', 'application/json');
 
     const request: RoleChangeRequest = {
-      requestedRole: 'AUTHOR',
+      requestedRole: Role.AUTHOR,
       reason: reason
     };
 
     return this.http.post<RoleChangeResponse>(
-      `${environment.apiUrl}/api/v1/roles/request`,
+      `${this.API_URL}/roles/request`,
       request,
       { headers }
     ).pipe(
@@ -422,7 +415,9 @@ export class AuthService {
   }
 
   isAuthenticated(): boolean {
-    return this.hasValidToken();
+    const token = localStorage.getItem(this.TOKEN_KEY);
+    const user = localStorage.getItem(this.USER_KEY);
+    return !!token && !!user;
   }
 
   private hasValidToken(): boolean {
@@ -451,6 +446,63 @@ export class AuthService {
         localStorage.setItem(this.USER_KEY, JSON.stringify(user));
       }),
       catchError(this.handleError.bind(this))
+    );
+  }
+
+  private getCurrentUserSync(): any {
+    return this.authState.value.user;
+  }
+
+  requestRoleChange(request: RoleChangeRequest): Observable<RoleChangeResponse> {
+    const token = this.getToken();
+    if (!token) {
+      return throwError(() => new Error('No authentication token found'));
+    }
+
+    const headers = new HttpHeaders({
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    });
+
+    return this.http.post<RoleChangeResponse>(
+      `${this.API_URL}/roles/request`,
+      request,
+      { headers }
+    ).pipe(
+      tap(response => {
+        console.log('Role request response:', response);
+        if (response.status === 'APPROVED') {
+          this.refreshUserInfo();
+        }
+      }),
+      catchError(error => {
+        console.error('Role request error:', error);
+        if (error.status === 500) {
+          return throwError(() => new Error('Server error. Please try again later.'));
+        } else if (error.status === 404) {
+          return throwError(() => new Error('Role request endpoint not found. Please contact support.'));
+        }
+        return throwError(() => error.error?.message || 'Failed to submit request');
+      })
+    );
+  }
+
+  getMyRoleRequests(): Observable<any> {
+    const token = this.getToken();
+    if (!token) {
+      return throwError(() => new Error('No authentication token found'));
+    }
+
+    const headers = new HttpHeaders({
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    });
+
+    return this.http.get<any>(`${this.API_URL}/roles/my-requests`, { headers }).pipe(
+      catchError(error => {
+        console.error('Error fetching role requests:', error);
+        return throwError(() => error.error?.message || 'Failed to fetch role requests');
+      })
     );
   }
 }

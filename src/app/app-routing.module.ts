@@ -9,8 +9,14 @@ import { ResetPasswordComponent } from './auth/components/reset-password/reset-p
 import { BookEditorComponent } from './books/components/book-editor/book-editor.component';
 import { ChapterReadPage } from './books/pages/chapter-read/chapter-read.page';
 import { ProfileComponent } from './auth/components/profile/profile.component';
+import { AdminRoutingModule } from './admin/admin-routing.module';
 
 export const routes: Routes = [
+  {
+    path: '',
+    loadChildren: () => import('./public/public.module').then(m => m.PublicModule),
+    pathMatch: 'prefix'
+  },
   {
     path: 'auth',
     children: [
@@ -85,11 +91,21 @@ export const routes: Routes = [
       {
         path: 'authors',
         loadChildren: () => import('./authors/authors.module').then(m => m.AuthorsModule)
+      },
+      {
+        path: 'admin',
+        canActivate: [AuthGuard],
+        loadChildren: () => import('./admin/admin-routing.module').then(m => m.AdminRoutingModule)
+      },
+      {
+        path: 'role-request',
+        loadComponent: () => import('./auth/pages/role-request/role-request.page')
+          .then(m => m.RoleRequestPage),
+        canActivate: [AuthGuard]
       }
     ]
   },
-  { path: '', redirectTo: 'auth/login', pathMatch: 'full' },
-  { path: '**', redirectTo: 'auth/login' }
+  { path: '**', redirectTo: '' }
 ];
 
 @NgModule({

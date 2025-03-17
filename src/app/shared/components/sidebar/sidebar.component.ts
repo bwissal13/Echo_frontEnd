@@ -43,4 +43,10 @@ export class SidebarComponent implements OnInit {
     this.authService.logout();
     this.router.navigate(['/auth/login']);
   }
+
+  get isAdmin(): boolean {
+    const isAdmin = this.authService.hasRole('ADMIN');
+    console.log('Is Admin:', isAdmin);
+    return isAdmin;
+  }
 } 
