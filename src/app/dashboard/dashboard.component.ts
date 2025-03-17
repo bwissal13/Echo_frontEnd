@@ -36,16 +36,14 @@ interface ReaderActivity {
     RouterModule,
     MatButtonModule,
     MatIconModule,
-    SidebarComponent,
-    SearchBarComponent
+    SidebarComponent
   ],
   template: `
     <div class="app-container">
       <app-sidebar></app-sidebar>
 
       <div class="main-content">
-        <app-search-bar></app-search-bar>
-
+      
         <div class="current-book" *ngIf="currentBook">
           <div class="book-info">
             <h1>Happy reading, {{ currentUserName }}</h1>
@@ -73,10 +71,6 @@ interface ReaderActivity {
                        [alt]="book.title"
                        (error)="onImageError($event)">
                   <p class="book-title">{{ book.title }}</p>
-                  <div class="engagement-stats">
-                    <span><mat-icon>visibility</mat-icon> {{ book.viewsCount }}</span>
-                    <span><mat-icon>comment</mat-icon> {{ book.commentsCount }}</span>
-                  </div>
                 </div>
               </div>
             </div>
@@ -153,7 +147,7 @@ interface ReaderActivity {
         }
 
         button {
-          background: #2563eb;
+          background: #9d8aa5;
           color: white;
           border: none;
           padding: 12px 24px;
@@ -165,7 +159,7 @@ interface ReaderActivity {
           transition: all 0.2s ease;
 
           &:hover {
-            background: #1d4ed8;
+            background: #9d8aa5;
           }
         }
       }
@@ -289,7 +283,7 @@ interface ReaderActivity {
           }
 
           &.active {
-            background: #2563eb;
+            background: #9d8aa5;
             color: white;
           }
         }
@@ -337,7 +331,7 @@ interface ReaderActivity {
 
           .chapter-info {
             font-size: 12px;
-            color: #2563eb;
+            color: #9d8aa5;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -421,24 +415,10 @@ interface ReaderActivity {
       }
     }
 
-    .engagement-stats {
-      display: flex;
-      gap: 12px;
-      margin-top: 8px;
-      color: #666;
+    .book-author {
       font-size: 12px;
-
-      span {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-
-        mat-icon {
-          font-size: 16px;
-          width: 16px;
-          height: 16px;
-        }
-      }
+      color: #666;
+      margin-top: 4px;
     }
 
     .loading-state {
@@ -482,17 +462,23 @@ export class DashboardComponent implements OnInit {
     this.loading = true;
     this.bookService.getPublicBooks(0, 10, '', '').subscribe({
       next: (response) => {
+        console.log('API response books:', response.content); // Log the full response for debugging
+        
         if (response.content && response.content.length > 0) {
           // Process books to calculate engagement
-          const processedBooks = response.content.map(book => ({
-            id: book.id,
-            title: book.title,
-            coverImage: this.bookService.getBookCoverUrl(book.coverImage),
-            description: book.description,
-            totalEngagement: this.calculateEngagement(book),
-            commentsCount: book.commentsCount || 0,
-            viewsCount: book.views || 0
-          }));
+          const processedBooks = response.content.map(book => {
+            console.log('Book user data:', book.user); // Log user object to debug
+            
+            return {
+              id: book.id,
+              title: book.title,
+              coverImage: this.bookService.getBookCoverUrl(book.coverImage),
+              description: book.description,
+              totalEngagement: this.calculateEngagement(book),
+              commentsCount: book.commentsCount || 0,
+              viewsCount: book.views || 0
+            };
+          });
 
           // Sort by total engagement and take top 4
           this.popularBooks = processedBooks
@@ -517,35 +503,68 @@ export class DashboardComponent implements OnInit {
   }
 
   private calculateEngagement(book: any): number {
-    return (book.commentsCount || 0) + 
-           (book.views || 0) + 
-           (book.reactions?.like || 0);
+    console.log('Calculating engagement for book:', book); // Log to debug
+    
+    // Extract metrics with fallbacks for different property names
+    const comments = book.commentsCount || book.comments_count || 
+                    (book.comments ? book.comments.length : 0) || 0;
+                    
+    const views = book.views || book.viewsCount || book.view_count || 0;
+    
+    const likes = book.reactions?.like || book.likes || 0;
+    const bookmarks = book.bookmarks || book.bookmark_count || 0;
+    
+    const total = comments + views + likes + bookmarks;
+    console.log(`Engagement: comments=${comments}, views=${views}, likes=${likes}, bookmarks=${bookmarks}, total=${total}`);
+    
+    return total;
   }
 
   private loadReaderActivities(bookId: number) {
     // Load both book comments and first chapter comments
     forkJoin({
       bookComments: this.bookService.getBookComments(bookId),
-      chapters: this.bookService.getChapters(bookId) // Fixed method name
+      chapters: this.bookService.getChapters(bookId)
     }).subscribe({
       next: ({ bookComments, chapters }) => {
-        if (chapters.content && chapters.content.length > 0) { // Access content property
+        // Start with book comments
+        let activities = this.formatComments(bookComments, 'Book');
+        
+        if (chapters.content && chapters.content.length > 0) {
+          const firstChapter = chapters.content[0];
+          
           // Get comments for the first chapter
-          this.chapterService.getChapterComments(chapters.content[0].id).subscribe({
+          this.chapterService.getChapterComments(firstChapter.id).subscribe({
             next: (chapterComments) => {
-              // Combine and format all activities
-              const activities = [
-                ...this.formatComments(bookComments, 'Book'),
-                ...this.formatComments(chapterComments, chapters.content[0].title)
+              // Add chapter comments to activities
+              activities = [
+                ...activities,
+                ...this.formatComments(chapterComments, firstChapter.title)
               ];
 
               // Sort by date and take latest 5
               this.readerActivities = activities
                 .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                 .slice(0, 5);
+            },
+            error: (error) => {
+              console.error('Error loading chapter comments:', error);
+              // Still display book comments even if chapter comments fail
+              this.readerActivities = activities
+                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                .slice(0, 5);
             }
           });
+        } else {
+          // No chapters available, just use book comments
+          this.readerActivities = activities
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 5);
         }
+      },
+      error: (error) => {
+        console.error('Error loading reader activities:', error);
+        this.readerActivities = [];
       }
     });
   }
