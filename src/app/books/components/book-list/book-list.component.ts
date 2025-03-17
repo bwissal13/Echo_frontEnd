@@ -14,7 +14,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ErrorMessageComponent } from '../../../shared/components/error-message/error-message.component';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
-
+import { BackButtonComponent } from '../../../shared/components/back-button/back-button.component';
 @Component({
   selector: 'app-book-list',
   standalone: true,
@@ -30,7 +30,8 @@ import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
     ErrorMessageComponent,
     LoadingSpinnerComponent,
     MatProgressSpinnerModule,
-    MatPaginatorModule
+    MatPaginatorModule,
+    BackButtonComponent
   ],
   templateUrl: './book-list.component.html',
   styleUrls: ['./book-list.component.scss']

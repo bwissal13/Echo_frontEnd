@@ -17,7 +17,7 @@ import { PageEvent } from '@angular/material/paginator';
 import { Sort, SortDirection } from '@angular/material/sort';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { MatButtonModule } from '@angular/material/button';
-
+import { BackButtonComponent } from '../../../shared/components/back-button/back-button.component';
 @Component({
   selector: 'app-authors-list',
   templateUrl: './authors-list.page.html',
@@ -34,7 +34,8 @@ import { MatButtonModule } from '@angular/material/button';
     RouterModule,
     SidebarComponent,
     SearchBarComponent,
-    MatButtonModule
+    MatButtonModule,
+    BackButtonComponent
   ]
 })
 export class AuthorsListPage implements OnInit {

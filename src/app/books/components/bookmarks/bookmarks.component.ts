@@ -8,10 +8,9 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../auth/services/auth.service';
 import { SidebarComponent } from '../../../shared/components/sidebar/sidebar.component';
-import { SearchBarComponent } from '../../../shared/components/search-bar/search-bar.component';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
-
+import { BackButtonComponent } from '../../../shared/components/back-button/back-button.component';
 @Component({
   selector: 'app-bookmarks',
   standalone: true,
@@ -21,17 +20,18 @@ import { MatButtonModule } from '@angular/material/button';
     MatProgressSpinnerModule, 
     BookCardComponent,
     SidebarComponent,
-    SearchBarComponent,
     MatDialogModule,
-    MatButtonModule
+    MatButtonModule,
+    BackButtonComponent
   ],
   template: `
     <div class="page-container">
       <app-sidebar></app-sidebar>
       <div class="main-content">
-        <div class="flex justify-between items-center mb-6">
-          <app-search-bar></app-search-bar>
-        </div>
+      <div class="top-row">
+        <app-back-button></app-back-button>
+        <h1>My Bookmarks</h1>
+      </div>
 
         <div *ngIf="loading" class="loading-state">
           <mat-spinner diameter="40"></mat-spinner>
@@ -85,39 +85,37 @@ import { MatButtonModule } from '@angular/material/button';
     .page-container {
       display: flex;
       min-height: 100vh;
-      background-color: #f8f9fa;
+      background: #f8f9fa;
     }
 
     .main-content {
       flex: 1;
-      padding: 20px;
+      padding: 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
     }
 
-    .header {
+    .top-row {
       display: flex;
       align-items: center;
-      margin-bottom: 32px;
-      gap: 16px;
-
-      .bookmark-icon {
-        font-size: 32px;
-        width: 32px;
-        height: 32px;
-        color: #262626;
-      }
+      gap: 1rem;
+      margin-bottom: 1.5rem;
 
       h1 {
-        font-size: 24px;
-        font-weight: 600;
-        color: #262626;
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1a1a1a;
         margin: 0;
+        letter-spacing: -0.5px;
       }
     }
 
     .bookmarks-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 24px;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
     }
 
     .bookmark-collection {
@@ -126,16 +124,18 @@ import { MatButtonModule } from '@angular/material/button';
       &:hover {
         .collection-preview {
           transform: translateY(-4px);
+          box-shadow: 0 8px 16px rgba(0,0,0,0.08);
         }
       }
     }
 
     .collection-preview {
-      border: 1px solid #dbdbdb;
-      border-radius: 8px;
+      border-radius: 12px;
       overflow: hidden;
-      transition: transform 0.2s ease;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
       background: white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      border: 1px solid rgba(0, 0, 0, 0.05);
 
       .preview-images {
         display: grid;
@@ -155,19 +155,19 @@ import { MatButtonModule } from '@angular/material/button';
       }
 
       .collection-info {
-        padding: 12px 16px;
-        border-top: 1px solid #dbdbdb;
+        padding: 1rem;
+        border-top: 1px solid #f0f0f0;
 
         h3 {
           margin: 0;
-          font-size: 14px;
+          font-size: 1rem;
           font-weight: 600;
-          color: #262626;
+          color: #1a1a1a;
         }
 
         span {
-          font-size: 12px;
-          color: #737373;
+          font-size: 0.8rem;
+          color: #666;
         }
       }
     }
@@ -177,54 +177,40 @@ import { MatButtonModule } from '@angular/material/button';
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 64px 24px;
-      color: #737373;
+      padding: 4rem 2rem;
+      color: #666;
       background: white;
-      border-radius: 8px;
-      margin-top: 24px;
+      border-radius: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 
       mat-icon {
-        font-size: 96px;
-        width: 96px;
-        height: 96px;
-        margin-bottom: 24px;
+        font-size: 4rem;
+        width: 4rem;
+        height: 4rem;
+        margin-bottom: 1.5rem;
+        color: #2563eb;
       }
 
       p {
-        font-size: 22px;
-        font-weight: 300;
-        margin: 0 0 8px 0;
+        font-size: 1.5rem;
+        font-weight: 500;
+        margin: 0 0 0.5rem 0;
+        color: #1a1a1a;
       }
 
       span {
-        font-size: 14px;
+        font-size: 1rem;
       }
     }
 
     .loading-state {
       display: flex;
       justify-content: center;
-      padding: 48px;
-    }
-
-    .flex {
-      display: flex;
-    }
-
-    .justify-between {
-      justify-content: space-between;
-    }
-
-    .items-center {
-      align-items: center;
-    }
-
-    .mb-6 {
-      margin-bottom: 1.5rem;
+      padding: 3rem;
     }
 
     .dialog-container {
-      padding: 24px;
+      padding: 1.5rem;
       min-width: 600px;
       max-width: 90vw;
       max-height: 80vh;
@@ -235,21 +221,47 @@ import { MatButtonModule } from '@angular/material/button';
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 24px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid #dbdbdb;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #f0f0f0;
 
       h2 {
         margin: 0;
-        font-size: 20px;
+        font-size: 1.5rem;
         font-weight: 600;
+        color: #1a1a1a;
       }
     }
 
     .books-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      gap: 20px;
+      gap: 1.5rem;
+    }
+    
+    @media (max-width: 768px) {
+      .main-content {
+        padding: 1rem;
+      }
+      
+      .top-row h1 {
+        font-size: 1.5rem;
+      }
+      
+      .bookmarks-grid {
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 1rem;
+      }
+      
+      .dialog-container {
+        min-width: auto;
+        width: 100%;
+      }
+      
+      .books-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 1rem;
+      }
     }
   `]
 })

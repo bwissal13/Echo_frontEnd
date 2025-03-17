@@ -1,9 +1,12 @@
 <div class="authors-container">
   <app-sidebar></app-sidebar>
-  <div class="main-content">
-    <div class="authors-header">
-      <h1>Authors</h1>
-      <app-search-bar [formControl]="searchControl"></app-search-bar>
+  <main class="main-content">
+    <div class="header-section">
+      <div class="top-row">
+        <app-back-button></app-back-button>
+        <h1>Authors</h1>
+      </div>
+      <app-search-bar></app-search-bar>
     </div>
 
     <div class="authors-content">
@@ -74,5 +77,5 @@
         <p>No authors found</p>
       </div>
     </div>
-  </div>
+  </main>
 </div> 

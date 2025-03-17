@@ -4,13 +4,12 @@
 
   <!-- Main Content -->
   <main class="main-content">
-    <div class="flex justify-between items-center mb-6">
+    <div class="header-section">
+      <div class="top-row">
+        <app-back-button></app-back-button>
+        <h1>My Books</h1>
+      </div>
       <app-search-bar></app-search-bar>
-      <button mat-raised-button color="primary" (click)="fileInput.click()" *ngIf="isAuthor">
-        <mat-icon>image</mat-icon>
-        Change Cover
-      </button>
-      <input #fileInput type="file" hidden (change)="onFileSelected($event)" accept="image/*">
     </div>
 
     <!-- Loading spinner -->
