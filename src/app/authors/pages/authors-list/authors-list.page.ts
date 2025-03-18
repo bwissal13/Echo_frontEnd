@@ -11,7 +11,6 @@ import { AuthorsService } from '../../services/authors.service';
 import { Author, AuthorsResponse } from '../../models/author.model';
 import { Page } from '../../../shared/models/page.model';
 import { SidebarComponent } from '../../../shared/components/sidebar/sidebar.component';
-import { SearchBarComponent } from '../../../shared/components/search-bar/search-bar.component';
 import { FormControl } from '@angular/forms';
 import { PageEvent } from '@angular/material/paginator';
 import { Sort, SortDirection } from '@angular/material/sort';
@@ -33,7 +32,6 @@ import { BackButtonComponent } from '../../../shared/components/back-button/back
     MatIconModule,
     RouterModule,
     SidebarComponent,
-    SearchBarComponent,
     MatButtonModule,
     BackButtonComponent
   ]

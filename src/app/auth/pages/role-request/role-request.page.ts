@@ -53,38 +53,68 @@ interface RoleRequest {
           </div>
 
           <form (ngSubmit)="submitRequest()" #roleForm="ngForm" class="role-form">
-            <mat-form-field appearance="outline">
-              <mat-label>Requested Role</mat-label>
-              <mat-select [(ngModel)]="requestedRole" name="role" required>
-                <mat-option [value]="Role.AUTHOR">Author</mat-option>
-                <mat-option [value]="Role.ADMIN">Admin</mat-option>
-              </mat-select>
-              <mat-hint>Select the role you'd like to request</mat-hint>
-            </mat-form-field>
+            <div class="role-options">
+              <label class="field-label">Select Role <span class="required">*</span></label>
+              
+              <div class="role-cards">
+                <div class="role-card" 
+                     [class.selected]="requestedRole === Role.AUTHOR"
+                     (click)="requestedRole = Role.AUTHOR">
+                  <div class="role-icon author">
+                    <mat-icon>edit</mat-icon>
+                  </div>
+                  <div class="role-info">
+                    <h3>Author</h3>
+                    <p>Create and publish books</p>
+                  </div>
+                  <div class="selected-indicator" *ngIf="requestedRole === Role.AUTHOR">
+                    <mat-icon>check_circle</mat-icon>
+                  </div>
+                </div>
+                
+                <div class="role-card" 
+                     [class.selected]="requestedRole === Role.ADMIN"
+                     (click)="requestedRole = Role.ADMIN">
+                  <div class="role-icon admin">
+                    <mat-icon>admin_panel_settings</mat-icon>
+                  </div>
+                  <div class="role-info">
+                    <h3>Admin</h3>
+                    <p>Manage users and content</p>
+                  </div>
+                  <div class="selected-indicator" *ngIf="requestedRole === Role.ADMIN">
+                    <mat-icon>check_circle</mat-icon>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-            <mat-form-field appearance="outline">
-              <mat-label>Reason for Request</mat-label>
-              <textarea 
-                matInput 
-                [(ngModel)]="reason" 
-                name="reason" 
-                required
-                minlength="20"
-                #reasonInput="ngModel"
-                rows="5"
-                placeholder="Please explain why you're requesting this role change...">
-              </textarea>
-              <mat-hint align="end">{{reason.length}} / 20 min characters</mat-hint>
-              <mat-error *ngIf="reasonInput.hasError('required')">
-                Please provide a reason for your request
-              </mat-error>
-              <mat-error *ngIf="reasonInput.hasError('minlength')">
-                Reason must be at least 20 characters long
-              </mat-error>
-            </mat-form-field>
+            <div class="reason-field">
+              <label class="field-label">Why are you requesting this role? <span class="required">*</span></label>
+              <div class="textarea-wrapper" [class.focused]="isFocused" [class.invalid]="reasonInvalid">
+                <textarea 
+                  [(ngModel)]="reason" 
+                  name="reason" 
+                  required
+                  minlength="20"
+                  #reasonInput="ngModel"
+                  rows="5"
+                  (focus)="isFocused = true"
+                  (blur)="isFocused = false"
+                  placeholder="Please explain why you're requesting this role change and how you plan to contribute...">
+                </textarea>
+                <div class="character-counter" [class.error]="reason.length < 20">
+                  {{ reason.length }} / 20 min characters
+                </div>
+              </div>
+              <div class="validation-message" *ngIf="reasonInput.touched && reasonInput.invalid">
+                <mat-icon>error_outline</mat-icon>
+                <span *ngIf="reasonInput.errors?.['required']">Please provide a reason for your request</span>
+                <span *ngIf="reasonInput.errors?.['minlength']">Please enter at least 20 characters</span>
+              </div>
+            </div>
 
             <button 
-              mat-flat-button 
               type="submit"
               class="submit-button"
               [disabled]="!roleForm.form.valid || loading">
@@ -167,26 +197,26 @@ interface RoleRequest {
       border-radius: 16px;
       padding: 32px;
       width: 100%;
-      max-width: 500px;
-      box-shadow: 0 4px 6px -1px rgba(157, 138, 165, 0.1);
-      border: 1px solid rgba(157, 138, 165, 0.1);
+      max-width: 800px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      border: 1px solid rgba(0, 0, 0, 0.05);
     }
 
     .form-header {
       text-align: center;
-      margin-bottom: 32px;
+      margin-bottom: 40px;
 
       h1 {
-        font-size: 24px;
-        font-weight: 600;
+        font-size: 28px;
+        font-weight: 700;
         color: #1a1a1a;
         margin: 0;
-        margin-bottom: 8px;
+        margin-bottom: 12px;
       }
 
       p {
         color: #666;
-        font-size: 14px;
+        font-size: 16px;
         margin: 0;
       }
     }
@@ -194,28 +224,198 @@ interface RoleRequest {
     .role-form {
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 32px;
+    }
 
-      mat-form-field {
-        width: 100%;
+    .field-label {
+      display: block;
+      font-size: 15px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 12px;
+
+      .required {
+        color: #ef4444;
+      }
+    }
+
+    .role-options {
+      margin-bottom: 10px;
+    }
+
+    .role-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .role-card {
+      display: flex;
+      align-items: center;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+
+      &:hover {
+        border-color: #d1d5db;
+        background-color: #f9fafb;
+      }
+
+      &.selected {
+        border-color: #4f46e5;
+        background-color: #f5f3ff;
+      }
+    }
+
+    .role-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 16px;
+
+      mat-icon {
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+        color: white;
+      }
+
+      &.author {
+        background: linear-gradient(135deg, #4f46e5, #6366f1);
+      }
+
+      &.admin {
+        background: linear-gradient(135deg, #f59e0b, #fbbf24);
+      }
+    }
+
+    .role-info {
+      flex: 1;
+
+      h3 {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0 0 4px 0;
+        color: #374151;
+      }
+
+      p {
+        font-size: 14px;
+        color: #6b7280;
+        margin: 0;
+      }
+    }
+
+    .selected-indicator {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: #4f46e5;
+      border-radius: 50%;
+      border: 2px solid white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+        color: white;
+      }
+    }
+
+    .reason-field {
+      margin-bottom: 10px;
+    }
+
+    .textarea-wrapper {
+      position: relative;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      transition: all 0.2s ease;
+      background: #f9fafb;
+
+      &.focused {
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+        background: white;
+      }
+
+      &.invalid {
+        border-color: #ef4444;
       }
 
       textarea {
+        width: 100%;
+        padding: 16px;
+        border: none;
+        background: transparent;
+        font-family: inherit;
+        font-size: 15px;
+        line-height: 1.5;
+        color: #374151;
+        resize: vertical;
         min-height: 120px;
+        outline: none;
+
+        &::placeholder {
+          color: #9ca3af;
+        }
+      }
+    }
+
+    .character-counter {
+      position: absolute;
+      bottom: 8px;
+      right: 16px;
+      font-size: 12px;
+      color: #6b7280;
+
+      &.error {
+        color: #ef4444;
+      }
+    }
+
+    .validation-message {
+      display: flex;
+      align-items: center;
+      margin-top: 8px;
+      font-size: 13px;
+      color: #ef4444;
+
+      mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        margin-right: 4px;
       }
     }
 
     .submit-button {
-      background: linear-gradient(135deg, #9d8aa5, #7c6d85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
       color: white;
-      padding: 8px 24px;
-      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
       transition: all 0.2s ease;
-      width: 100%;
+      gap: 8px;
       margin-top: 16px;
 
       &:hover:not(:disabled) {
-        background: linear-gradient(135deg, #8a7991, #6a5c72);
+        background: linear-gradient(135deg, #4338ca, #4f46e5);
         transform: translateY(-1px);
       }
 
@@ -223,32 +423,10 @@ interface RoleRequest {
         opacity: 0.7;
         cursor: not-allowed;
       }
-
-      mat-icon {
-        margin-right: 8px;
-      }
-    }
-
-    ::ng-deep {
-      .mat-form-field-appearance-outline .mat-form-field-outline {
-        color: rgba(157, 138, 165, 0.3);
-      }
-
-      .mat-form-field.mat-focused .mat-form-field-label {
-        color: #7c6d85;
-      }
-
-      .mat-form-field.mat-focused .mat-form-field-outline-thick {
-        color: #9d8aa5;
-      }
-
-      .mat-select-value, .mat-select-arrow {
-        color: #1a1a1a;
-      }
     }
 
     .divider {
-      margin: 32px 0;
+      margin: 40px 0;
     }
 
     .requests-section {
@@ -416,15 +594,34 @@ interface RoleRequest {
         height: 20px;
       }
     }
+
+    @media (max-width: 768px) {
+      .main-content {
+        padding: 16px;
+      }
+
+      .form-container {
+        padding: 24px;
+      }
+
+      .role-cards {
+        grid-template-columns: 1fr;
+      }
+    }
   `]
 })
 export class RoleRequestPage implements OnInit {
   Role = Role;
   requestedRole: Role = Role.AUTHOR;
   reason: string = '';
-  loading: boolean = false;
+  loading = false;
   loadingRequests: boolean = true;
   myRequests: RoleRequest[] = [];
+  isFocused = false;
+  
+  get reasonInvalid(): boolean {
+    return this.reason.length > 0 && this.reason.length < 20;
+  }
 
   constructor(
     private authService: AuthService,

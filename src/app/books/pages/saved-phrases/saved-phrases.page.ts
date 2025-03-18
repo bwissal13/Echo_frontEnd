@@ -4,6 +4,8 @@ import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { SidebarComponent } from '../../../shared/components/sidebar/sidebar.component';
+import { AuthService } from '../../../auth/services/auth.service';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 interface SavedSelection {
   text: string;
@@ -13,6 +15,7 @@ interface SavedSelection {
   bookId: number;
   savedAt: string;
   note?: string;
+  userId?: string;
 }
 
 @Component({
@@ -185,15 +188,66 @@ interface SavedSelection {
 })
 export class SavedPhrasesPage implements OnInit {
   savedPhrases: SavedSelection[] = [];
+  private currentUserId: string | null = null;
+
+  constructor(
+    private authService: AuthService,
+    private snackBar: MatSnackBar
+  ) {}
 
   ngOnInit() {
+    this.currentUserId = this.authService.getCurrentUserId();
+    
+    // Migrate existing phrases to include user IDs if needed
+    this.migrateExistingPhrases();
+    
     this.loadSavedPhrases();
   }
 
-  loadSavedPhrases() {
+  // This method adds user IDs to existing phrases
+  private migrateExistingPhrases() {
+    // Only proceed if we have a valid user ID
+    if (!this.currentUserId) return;
+    
     const saved = localStorage.getItem('savedSelections');
     if (saved) {
-      this.savedPhrases = JSON.parse(saved);
+      const allPhrases: SavedSelection[] = JSON.parse(saved);
+      let hasChanges = false;
+      
+      // Find phrases without userIds and assign them to the current user
+      allPhrases.forEach(phrase => {
+        if (!phrase.userId) {
+          // Use currentUserId only if it's not null (we already checked above)
+          phrase.userId = this.currentUserId as string;
+          hasChanges = true;
+        }
+      });
+      
+      // Save back if we made changes
+      if (hasChanges) {
+        localStorage.setItem('savedSelections', JSON.stringify(allPhrases));
+        this.snackBar.open('Your saved phrases have been updated', 'Close', {
+          duration: 3000
+        });
+      }
+    }
+  }
+
+  loadSavedPhrases() {
+    if (!this.currentUserId) {
+      this.savedPhrases = [];
+      return;
+    }
+    
+    const saved = localStorage.getItem('savedSelections');
+    if (saved) {
+      const allPhrases: SavedSelection[] = JSON.parse(saved);
+      
+      // Only show phrases that explicitly belong to this user
+      this.savedPhrases = allPhrases.filter(phrase => 
+        phrase.userId === this.currentUserId
+      );
+      
       // Sort by most recent first
       this.savedPhrases.sort((a, b) => 
         new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime()
@@ -202,10 +256,30 @@ export class SavedPhrasesPage implements OnInit {
   }
 
   deleteSavedPhrase(phrase: SavedSelection) {
-    const index = this.savedPhrases.indexOf(phrase);
-    if (index > -1) {
-      this.savedPhrases.splice(index, 1);
-      localStorage.setItem('savedSelections', JSON.stringify(this.savedPhrases));
+    if (!this.currentUserId) return;
+    
+    const saved = localStorage.getItem('savedSelections');
+    if (saved) {
+      const allPhrases: SavedSelection[] = JSON.parse(saved);
+      
+      // Only delete if it belongs to the current user
+      const index = allPhrases.findIndex(p => 
+        p.text === phrase.text && 
+        p.bookId === phrase.bookId && 
+        p.chapterId === phrase.chapterId &&
+        p.savedAt === phrase.savedAt &&
+        p.userId === this.currentUserId
+      );
+      
+      if (index > -1) {
+        allPhrases.splice(index, 1);
+        localStorage.setItem('savedSelections', JSON.stringify(allPhrases));
+        
+        const localIndex = this.savedPhrases.indexOf(phrase);
+        if (localIndex > -1) {
+          this.savedPhrases.splice(localIndex, 1);
+        }
+      }
     }
   }
 } 

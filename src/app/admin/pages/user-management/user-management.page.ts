@@ -7,9 +7,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 import { SidebarComponent } from '../../../shared/components/sidebar/sidebar.component';
-import { SearchBarComponent } from '../../../shared/components/search-bar/search-bar.component';
 import { AdminService } from '../../services/admin.service';
 import { User } from '../../../auth/models/auth.interface';
 import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
@@ -26,8 +25,8 @@ import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialo
     MatIconModule,
     MatMenuModule,
     MatDialogModule,
-    SidebarComponent,
-    SearchBarComponent
+    MatSnackBarModule,
+    SidebarComponent
   ],
   template: `
     <div class="app-container">
@@ -36,7 +35,6 @@ import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialo
       <div class="main-content">
         <div class="page-header">
           <h1>User Management</h1>
-          <app-search-bar (search)="onSearch($event)"></app-search-bar>
         </div>
 
         <div class="table-container">

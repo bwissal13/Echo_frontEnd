@@ -505,4 +505,9 @@ export class AuthService {
       })
     );
   }
+
+  getCurrentUserId(): string | null {
+    const user = this.getCurrentUserSync();
+    return user ? user.id : null;
+  }
 }

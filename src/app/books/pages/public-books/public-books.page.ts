@@ -5,7 +5,6 @@ import { MatIconModule } from '@angular/material/icon';
 import { RouterModule, Router } from '@angular/router';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { SidebarComponent } from '../../../shared/components/sidebar/sidebar.component';
-import { SearchBarComponent } from '../../../shared/components/search-bar/search-bar.component';
 import { LoadingSpinnerComponent } from '../../../shared/components/loading-spinner/loading-spinner.component';
 import { ErrorMessageComponent } from '../../../shared/components/error-message/error-message.component';
 import { BookService } from '../../services/book.service';
@@ -22,7 +21,6 @@ import { BackButtonComponent } from '../../../shared/components/back-button/back
     RouterModule,
     MatPaginatorModule,
     SidebarComponent,
-    SearchBarComponent,
     LoadingSpinnerComponent,
     ErrorMessageComponent,
     BackButtonComponent

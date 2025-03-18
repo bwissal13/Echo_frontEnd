@@ -7,25 +7,11 @@
         <app-back-button></app-back-button>
         <h1>Discover Books</h1>
       </div>
-      <app-search-bar (search)="onSearch($event)" class="search-bar"></app-search-bar>
+      
     </div>
 
-    <div class="filters-section">
-      <button mat-button [class.active]="currentFilter === 'all'" (click)="filterBooks('all')">
-        <mat-icon>library_books</mat-icon>
-        All Books
-      </button>
-      <button mat-button [class.active]="currentFilter === 'popular'" (click)="filterBooks('popular')">
-        <mat-icon>trending_up</mat-icon>
-        Popular
-      </button>
-      <button mat-button [class.active]="currentFilter === 'recent'" (click)="filterBooks('recent')">
-        <mat-icon>new_releases</mat-icon>
-        New Releases
-      </button>
-    </div>
-
-    <app-loading-spinner *ngIf="loading"></app-loading-spinner>
+   
+   <app-loading-spinner *ngIf="loading"></app-loading-spinner>
     <app-error-message *ngIf="error" [message]="error"></app-error-message>
 
     <div class="books-grid" *ngIf="!loading && !error && books.length > 0">
