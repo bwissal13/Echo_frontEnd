@@ -42,8 +42,12 @@ import { BackButtonComponent } from '../../../shared/components/back-button/back
             <div class="collection-preview">
               <div class="preview-images">
                 <ng-container *ngFor="let book of group.books.slice(0, 3)">
-                  <img [src]="getImageUrl(book.coverImage)" [alt]="book.title">
+                  <img [src]="getImageUrl(book.coverImage)" [alt]="book.title" 
+                       [ngClass]="{'single-image': group.books.length === 1, 'double-image': group.books.length === 2}">
                 </ng-container>
+                <!-- Add empty placeholders if less than 3 books -->
+                <div class="empty-image" *ngIf="group.books.length === 1"></div>
+                <div class="empty-image" *ngIf="group.books.length === 1 || group.books.length === 2"></div>
               </div>
               <div class="collection-info">
                 <h3>{{ group.name }}</h3>
@@ -148,6 +152,29 @@ import { BackButtonComponent } from '../../../shared/components/back-button/back
           object-fit: cover;
           border-right: 1px solid #fff;
 
+          &:last-child {
+            border-right: none;
+          }
+          
+          &.single-image {
+            grid-column: 2 / span 1;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-right: none;
+          }
+          
+          &.double-image {
+            &:first-child {
+              grid-column: 1 / span 2;
+            }
+          }
+        }
+        
+        .empty-image {
+          background-color: #f5f5f5;
+          border-right: 1px solid #fff;
+          
           &:last-child {
             border-right: none;
           }
