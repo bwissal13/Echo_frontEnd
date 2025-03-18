@@ -51,6 +51,8 @@ export class BookListComponent implements OnInit {
   totalBooks = 0;
   pageSizeOptions = [12, 24, 36, 48];
   searchQuery = '';
+  searchGenre: string = '';
+  searchAuthorName: string = '';
 
   private readonly API_URL = 'http://localhost:8080';
 
@@ -68,14 +70,36 @@ export class BookListComponent implements OnInit {
     this.loading = true;
     this.error = null;
 
+    console.log('Loading books with:', {
+      query: this.searchQuery,
+      genre: this.searchGenre,
+      authorName: this.searchAuthorName
+    });
+
     // Get current user from Auth Service
     this.authService.getCurrentUser().subscribe({
       next: (user) => {
         const userId = user?.id;
         
-        if (this.searchQuery && this.searchQuery.trim() !== '') {
-          // If searching, use searchBooks with user ID
-          this.bookService.searchBooks(this.searchQuery, this.currentPage, this.pageSize, userId).subscribe({
+        if (this.searchQuery || this.searchGenre || this.searchAuthorName) {
+          // Use advanced search
+          console.log('Calling searchBooks with:', {
+            query: this.searchQuery,
+            page: this.currentPage,
+            size: this.pageSize,
+            userId: userId,
+            genre: this.searchGenre,
+            authorName: this.searchAuthorName
+          });
+          
+          this.bookService.searchBooks(
+            this.searchQuery,
+            this.currentPage, 
+            this.pageSize, 
+            userId,
+            this.searchGenre,
+            this.searchAuthorName
+          ).subscribe({
             next: (response) => {
               console.log('Books searched:', response);
               this.books = response.content;
@@ -89,7 +113,7 @@ export class BookListComponent implements OnInit {
             }
           });
         } else {
-          // Otherwise use the regular getMyBooks endpoint
+          // Regular books loading
           this.bookService.getMyBooks(this.currentPage, this.pageSize).subscribe({
             next: (response) => {
               console.log('Books loaded:', response);
@@ -113,9 +137,28 @@ export class BookListComponent implements OnInit {
     });
   }
 
-  onSearch(query: string) {
-    console.log('Search initiated with query:', query);
-    this.searchQuery = query;
+  onSearch(searchData: any) {
+    console.log('BookListComponent received search data:', searchData);
+    
+    // If string is passed, it's a simple search query
+    if (typeof searchData === 'string') {
+      this.searchQuery = searchData;
+      this.currentPage = 0;
+      this.loadBooks();
+      return;
+    }
+    
+    // Otherwise it's an advanced search with multiple fields
+    this.searchQuery = searchData.query || '';
+    this.searchGenre = searchData.genre || '';
+    this.searchAuthorName = searchData.authorName || '';
+    
+    console.log('Updated search parameters:', {
+      query: this.searchQuery,
+      genre: this.searchGenre,
+      authorName: this.searchAuthorName
+    });
+    
     this.currentPage = 0;
     this.loadBooks();
   }

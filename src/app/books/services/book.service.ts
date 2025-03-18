@@ -131,18 +131,41 @@ export class BookService {
     );
   }
 
-  searchBooks(query: string, page: number = 0, size: number = 10, authorId?: number): Observable<BookPage> {
+  searchBooks(query?: string, page: number = 0, size: number = 10, authorId?: number, genre?: string, authorName?: string): Observable<BookPage> {
+    console.log('BookService.searchBooks called with:', {
+      query, page, size, authorId, genre, authorName
+    });
+    
     let params = new HttpParams()
-      .set('search', query)
       .set('page', page.toString())
       .set('size', size.toString());
     
-    // If authorId is provided, only search books by that author
+    // Add search term if provided
+    if (query && query.trim() !== '') {
+      params = params.set('search', query.trim());
+    }
+    
+    // Add author ID filter if provided
     if (authorId) {
       params = params.set('authorId', authorId.toString());
     }
+    
+    // Add author name filter if provided
+    if (authorName && authorName.trim() !== '') {
+      params = params.set('authorName', authorName.trim());
+    }
 
-    // Use the main books endpoint instead of a dedicated search endpoint
+    // For genre-specific searches, use the path parameter endpoint
+    if (genre && genre.trim() !== '') {
+      console.log('Using genre-specific endpoint for:', genre.trim());
+      
+      // Use the genre endpoint but pass along other search parameters as query params
+      return this.getBooksByGenre(genre.trim(), page, size, query, authorName);
+    }
+
+    console.log('Final HTTP params for standard search:', params.toString());
+    
+    // Use the main endpoint for non-genre searches
     return this.http.get<BookPage>(`${this.API_URL}`, { 
       params,
       headers: this.getHeaders() 
@@ -151,6 +174,44 @@ export class BookService {
       catchError(error => {
         console.error('Error searching books:', error);
         return throwError(() => new Error('Failed to search books'));
+      })
+    );
+  }
+
+  // Update getBooksByGenre to accept additional search parameters
+  getBooksByGenre(genre: string, page: number = 0, size: number = 10, 
+                  query?: string, authorName?: string): Observable<BookPage> {
+    const formattedGenre = genre.trim().toUpperCase().replace(/\s+/g, '_');
+    
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString());
+    
+    // Include search term if provided
+    if (query && query.trim() !== '') {
+      params = params.set('search', query.trim());
+    }
+    
+    // Include author name if provided
+    if (authorName && authorName.trim() !== '') {
+      params = params.set('authorName', authorName.trim());
+    }
+    
+    console.log(`Requesting books by genre with params:`, {
+      genre: formattedGenre,
+      url: `${this.API_URL}/genre/${formattedGenre}`,
+      params: params.toString()
+    });
+    
+    // Use the genre endpoint with additional search parameters
+    return this.http.get<BookPage>(`${this.API_URL}/genre/${formattedGenre}`, {
+      params,
+      headers: this.getHeaders()
+    }).pipe(
+      tap(response => console.log('Genre filter results:', response)),
+      catchError(error => {
+        console.error(`Error fetching books by genre '${formattedGenre}':`, error);
+        return throwError(() => new Error(`Failed to fetch books in this genre. Error: ${error.message || 'Unknown error'}`));
       })
     );
   }
