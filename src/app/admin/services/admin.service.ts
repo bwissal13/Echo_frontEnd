@@ -86,9 +86,11 @@ export class AdminService {
   }
 
   updateUserStatus(userId: number, enabled: boolean): Observable<User> {
-    return this.http.put<User>(`${this.API_URL}/users/${userId}/status`, { enabled }, {
-      headers: this.getHeaders()
-    });
+    return this.http.put<User>(
+      `${this.API_URL}/users/${userId}/status?enabled=${enabled}`, 
+      {}, // Empty body since we're using query parameter
+      { headers: this.getHeaders() }
+    );
   }
 
   deleteUser(userId: number): Observable<void> {
