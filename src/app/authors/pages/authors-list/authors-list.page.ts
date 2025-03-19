@@ -17,6 +17,9 @@ import { Sort, SortDirection } from '@angular/material/sort';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { MatButtonModule } from '@angular/material/button';
 import { BackButtonComponent } from '../../../shared/components/back-button/back-button.component';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { AuthService } from '../../../auth/services/auth.service';
+
 @Component({
   selector: 'app-authors-list',
   templateUrl: './authors-list.page.html',
@@ -46,7 +49,11 @@ export class AuthorsListPage implements OnInit {
   sortDirection: 'asc' | 'desc' = 'asc';
   searchControl = new FormControl('');
 
-  constructor(private authorsService: AuthorsService) {}
+  constructor(
+    private authorsService: AuthorsService,
+    private snackBar: MatSnackBar,
+    private authService: AuthService
+  ) {}
 
   ngOnInit() {
     this.loadAuthors();
@@ -112,13 +119,54 @@ export class AuthorsListPage implements OnInit {
 
   followAuthor(authorId: number, event: Event) {
     event.stopPropagation();
-    this.authorsService.toggleFollow(authorId.toString()).subscribe({
-      next: (followed) => {
-        console.log(followed ? 'Author followed' : 'Author unfollowed');
-        this.loadAuthors();
+    
+    // Check if user is authenticated first
+    if (!this.authService.isAuthenticated()) {
+      this.snackBar.open('Please log in to follow authors', 'Go to Login', {
+        duration: 5000
+      }).onAction().subscribe(() => {
+        // Navigate to login page
+        // this.router.navigate(['/auth/login']);
+      });
+      return;
+    }
+    
+    // Find the author in the list
+    const authorIndex = this.authors.findIndex(author => author.id === authorId);
+    if (authorIndex === -1) return;
+    
+    const author = this.authors[authorIndex];
+    const isCurrentlyFollowing = author.isFollowing;
+    
+    // Optimistically update UI
+    author.isFollowing = !isCurrentlyFollowing;
+    
+    // If currently following, unsubscribe; otherwise subscribe
+    const action$ = isCurrentlyFollowing 
+      ? this.authorsService.unsubscribeFromAuthor(authorId.toString())
+      : this.authorsService.subscribeToAuthor(authorId.toString());
+    
+    action$.subscribe({
+      next: (result: any) => {
+        console.log(author.isFollowing ? 'Subscribed to author' : 'Unsubscribed from author');
+        
+        // Update follower count
+        if (author.isFollowing) {
+          author.totalFollowers++;
+        } else {
+          author.totalFollowers = Math.max(0, author.totalFollowers - 1);
+        }
       },
-      error: (error) => {
-        console.error('Error following author:', error);
+      error: (error: any) => {
+        console.error('Error updating subscription:', error);
+        // Revert the optimistic update on error
+        author.isFollowing = isCurrentlyFollowing;
+        
+        // Show error notification to user
+        this.snackBar.open('Failed to update subscription status. Please try again.', 'Close', {
+          duration: 5000,
+          panelClass: 'error-snackbar'
+        });
       }
     });
   }

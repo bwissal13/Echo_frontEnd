@@ -9,15 +9,18 @@ import { environment } from '../../../environments/environment';
   providedIn: 'root'
 })
 export class AuthorsService {
-  private readonly API_URL = 'http://localhost:8080/api/v1/users/authors';
+  private readonly API_URL = `${environment.apiUrl}/api/v1/users/authors`;
 
   constructor(private http: HttpClient) {}
 
   private getHeaders(): HttpHeaders {
     const token = localStorage.getItem('token');
+    if (!token) {
+      console.warn('Authentication token is missing');
+    }
     return new HttpHeaders({
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token || ''}`
     });
   }
 
@@ -52,9 +55,36 @@ export class AuthorsService {
     });
   }
 
-  toggleFollow(authorId: string): Observable<boolean> {
-    return this.http.post<boolean>(`${this.API_URL}/${authorId}/follow`, {}, {
+  subscribeToAuthor(authorId: string): Observable<any> {
+    return this.http.post<any>(`${environment.apiUrl}/api/v1/subscriptions/users/${authorId}`, {}, {
       headers: this.getHeaders()
-    });
+    }).pipe(
+      catchError(error => {
+        console.error('Error subscribing to author:', error);
+        return throwError(() => new Error('Failed to subscribe to author'));
+      })
+    );
+  }
+
+  unsubscribeFromAuthor(authorId: string): Observable<any> {
+    return this.http.delete<any>(`${environment.apiUrl}/api/v1/subscriptions/users/${authorId}`, {
+      headers: this.getHeaders()
+    }).pipe(
+      catchError(error => {
+        console.error('Error unsubscribing from author:', error);
+        return throwError(() => new Error('Failed to unsubscribe from author'));
+      })
+    );
+  }
+
+  toggleFollow(authorId: string): Observable<any> {
+    return this.http.post<any>(`${environment.apiUrl}/api/v1/subscriptions/users/${authorId}`, {}, {
+      headers: this.getHeaders()
+    }).pipe(
+      catchError(error => {
+        console.error('Error toggling subscription status:', error);
+        return throwError(() => new Error('Failed to update subscription status'));
+      })
+    );
   }
 } 
