@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
-import { Observable, catchError, forkJoin, of } from 'rxjs';
+import { Observable, catchError, forkJoin, of, switchMap } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { User } from '../../auth/models/auth.interface';
@@ -113,5 +113,10 @@ export class AdminService {
     return this.http.post(`${this.API_URL}/roles/reject/${requestId}`, { adminComment }, {
       headers: this.getHeaders()
     });
+  }
+
+  safeDeleteUser(userId: number): Observable<void> {
+    // Now that the backend handles cascade deletion, we can directly delete the user
+    return this.deleteUser(userId);
   }
 } 

@@ -76,10 +76,6 @@ import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialo
                   <mat-icon>more_vert</mat-icon>
                 </button>
                 <mat-menu #menu="matMenu">
-                  <button mat-menu-item [matMenuTriggerFor]="roleMenu">
-                    <mat-icon>person</mat-icon>
-                    <span>Change Role</span>
-                  </button>
                   <button mat-menu-item (click)="toggleUserStatus(user)">
                     <mat-icon>{{ user.enabled ? 'block' : 'check_circle' }}</mat-icon>
                     <span>{{ user.enabled ? 'Disable' : 'Enable' }}</span>
@@ -89,17 +85,7 @@ import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialo
                     <span>Delete</span>
                   </button>
                 </mat-menu>
-                <mat-menu #roleMenu="matMenu">
-                  <button mat-menu-item (click)="updateUserRole(user, 'USER')">
-                    <span>User</span>
-                  </button>
-                  <button mat-menu-item (click)="updateUserRole(user, 'AUTHOR')">
-                    <span>Author</span>
-                  </button>
-                  <button mat-menu-item (click)="updateUserRole(user, 'ADMIN')">
-                    <span>Admin</span>
-                  </button>
-                </mat-menu>
+               
               </td>
             </ng-container>
 
@@ -291,7 +277,7 @@ export class UserManagementPage implements OnInit {
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        this.adminService.deleteUser(user.id).subscribe({
+        this.adminService.safeDeleteUser(user.id).subscribe({
           next: () => {
             this.users = this.users.filter(u => u.id !== user.id);
             this.showSnackBar('User deleted successfully');
